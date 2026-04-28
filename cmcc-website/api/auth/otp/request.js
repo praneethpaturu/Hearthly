@@ -1,6 +1,6 @@
-import { OPERATORS, readBody, applyCors } from '../../_lib.js';
+import { getOperatorByPhone, readBody, applyCors } from '../../_lib.js';
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
   applyCors(res);
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' });
@@ -9,7 +9,8 @@ export default function handler(req, res) {
   if (!phone || !/^\+91\d{10}$/.test(phone)) {
     return res.status(400).json({ error: 'phone must be +91XXXXXXXXXX' });
   }
-  if (!OPERATORS.has(phone)) {
+  const op = await getOperatorByPhone(phone);
+  if (!op) {
     return res.status(403).json({
       error: 'CMCC is for operators only — your number is not on the operator allow-list',
     });
