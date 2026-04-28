@@ -153,6 +153,16 @@
   }
 
   let DATA = seed();
+  // Defensive: clean up any seed that has grown past expected bounds.
+  // Past versions of the merge logic could persist mobile-linked devices
+  // into DATA, so the seeded counts could climb across sessions and bog
+  // down paint() (DATA.devices > 200 in the wild). Cap and reset if bad.
+  const MAX_SEED_DEVICES = 140;
+  if ((DATA.devices?.length || 0) > MAX_SEED_DEVICES) {
+    console.warn('[CMCC] seed devices grew to', DATA.devices.length, '— resetting');
+    localStorage.removeItem('vl_cmcc_seed');
+    DATA = seed();
+  }
   let NETWORK = { devices: [] }; // populated from /api/cmcc/network
   let LIVE = null;               // merged view rebuilt every paint
 
@@ -254,6 +264,13 @@
   }
 
   // Cross-device polling — every 10s, check the server's aggregated state.
+  // Routes that depend on live network data — only these get auto-repainted
+  // when the polling loop fires. Static views like analytics, ai, audit,
+  // settings, simulation, compare don't need rebuilding every 10 s and
+  // doing so caused page lockups in HI mode (the i18n MutationObserver
+  // had to re-translate the whole subtree each paint).
+  const LIVE_DATA_ROUTES = new Set(['', 'overview', 'iot', 'orders', 'anomalies', 'communities', 'agents']);
+  let _lastNetworkSig = '';
   async function pollNetwork() {
     try {
       const r = await fetch('/api/cmcc/network', {
@@ -263,7 +280,15 @@
       NETWORK = await r.json();
     } catch { /* server unreachable, keep last */ }
   }
-  pollNetwork(); setInterval(() => { pollNetwork().then(paint); }, 10_000);
+  pollNetwork();
+  setInterval(async () => {
+    await pollNetwork();
+    if (!LIVE_DATA_ROUTES.has(currentRoute())) return;
+    const sig = JSON.stringify((NETWORK.devices || []).map((d) => d.deviceId).sort());
+    if (sig === _lastNetworkSig) return;
+    _lastNetworkSig = sig;
+    paint();
+  }, 10_000);
 
   // Listen for same-browser mobile mutations.
   window.addEventListener('storage', (e) => {
@@ -320,6 +345,11 @@
 
   // ═══ Shell render ═══════════════════════════════════════════════════
   function paint() {
+    // Pause i18n observer for the duration of the paint — innerHTML
+    // rewrites would otherwise fire thousands of mutation events,
+    // each translated synchronously. resumeI18n() runs one batch
+    // translateNode() pass over the new tree.
+    api.pauseI18n?.();
     try {
       _paint();
     } catch (e) {
@@ -339,6 +369,10 @@
       </div>`;
       document.getElementById('errReset').onclick = () => { localStorage.removeItem('vl_cmcc_seed'); location.reload(); };
       document.getElementById('errLogout').onclick = () => api.logout();
+    } finally {
+      // Resume the observer and run a single batched HI translation pass
+      // over the freshly-rendered DOM.
+      api.resumeI18n?.();
     }
   }
   function _paint() {
@@ -712,7 +746,7 @@
       <div style="display:flex; align-items:center; gap:12px;">
         <h2>IoT Fleet <span class="cmd-badge info">${LIVE.devices.length}</span></h2>
         <div style="flex:1;"></div>
-        <button class="cmd-btn primary" id="bulkOta">Schedule fleet OTA (${stale.length})</button>
+        <button class="cmd-btn primary" id="bulkOta"><span>Schedule fleet OTA</span> (${stale.length})</button>
       </div>
       <div class="cmd-grid cols-4">
         <div class="cmd-card cmd-kpi"><div class="lbl">Total bins</div><div class="val">${bins.length}</div></div>

@@ -619,20 +619,80 @@ window.api = (() => {
     'CERT-In compliant · DPDP Act 2023 · ISO 27001 · ap-south-1 · 12 languages': 'CERT-In अनुपालित · DPDP अधिनियम 2023 · ISO 27001 · ap-south-1 · 12 भाषाएँ',
   };
 
+  // Pattern-based fallback for dynamic strings (e.g. "5 services this
+  // week"). Each pattern is matched against the trimmed text node; the
+  // capture groups are spliced into the Hindi template via $1, $2, etc.
+  // Numbers / IDs / city names pass through unchanged.
+  const HI_PATTERNS = [
+    [/^(\d+) services this week$/, 'इस सप्ताह $1 सेवाएँ'],
+    [/^(\d+) workers without safety kit$/, '$1 कर्मचारी बिना सुरक्षा किट'],
+    [/^(\d+) workers overdue for health check$/, 'स्वास्थ्य जाँच में विलंबित $1 कर्मचारी'],
+    [/^(\d+) workers eligible for Skill India promotion$/, 'स्किल इंडिया प्रमोशन के योग्य $1 कर्मचारी'],
+    [/^(\d+) workers tracked$/i, '$1 कर्मचारी ट्रैक किए गए'],
+    [/^(\d+) active anomalies \((\d+) critical\)\. Most common: (.+)\.$/, '$1 सक्रिय विसंगतियाँ ($2 गंभीर)। सबसे सामान्य: $3।'],
+    [/^(\d+) flats · (\d+) agents online$/, '$1 फ़्लैट · $2 एजेंट ऑनलाइन'],
+    [/^(\d+) flats$/, '$1 फ़्लैट'],
+    [/^(\d+) agents online$/, '$1 एजेंट ऑनलाइन'],
+    [/^(\d+) orders today · SLA (\d+)%$/, 'आज $1 ऑर्डर · SLA $2%'],
+    [/^(\d+) orders today$/, 'आज $1 ऑर्डर'],
+    [/^(\d+) services scheduled$/, '$1 सेवाएँ शेड्यूल'],
+    [/^(\d+) total$/, 'कुल $1'],
+    [/^([A-Za-z][A-Za-z ]+), ([A-Z]{2}) · (\d+) flats · (\d+) agents online$/, '$1, $2 · $3 फ़्लैट · $4 एजेंट ऑनलाइन'],
+    [/^([A-Za-z][A-Za-z ]+) · (\d+) services this week$/, '$1 · इस सप्ताह $2 सेवाएँ'],
+    [/^([A-Za-z][A-Za-z ]+) · (\d+) flats$/, '$1 · $2 फ़्लैट'],
+    [/^Schedule fleet OTA \((\d+)\)$/, 'फ़्लीट OTA शेड्यूल ($1)'],
+    [/^(\d+) open$/, '$1 खुले'],
+    [/^(\d+) open · auto-escalate at SLA breach$/, '$1 खुले · SLA उल्लंघन पर ऑटो-एस्केलेट'],
+    [/^(\d+) entries$/, '$1 प्रविष्टियाँ'],
+    [/^(\d+) ULBs · (.+) citizens · live ward-level operations$/, '$1 ULB · $2 नागरिक · लाइव वार्ड-स्तरीय संचालन'],
+    [/^(\d+) of (\d+)$/, '$1 / $2'],
+    [/^(\d+) device(s)?$/, '$1 डिवाइस'],
+    [/^(\d+) deliveries logged in last 30 days$/, 'पिछले 30 दिनों में $1 डिलीवरी'],
+    [/^Loaded saved view$/, 'सहेजा गया दृश्य लोड किया'],
+    [/^Saves (\d+)s\/visit at gate · (\d+) deliveries\/month · est\. ₹([0-9,]+) in security time saved\.$/,
+      'गेट पर प्रति-विज़िट $1 सेकंड बचत · $2 डिलीवरी/माह · अनुमानित ₹$3 सुरक्षा समय की बचत।'],
+    [/^Pattern detected over (\d+) weeks · (\d+)% confidence · suggested: schedule extra Tuesday pickup OR notify maintenance team\.$/,
+      'पैटर्न $1 सप्ताह में पहचाना गया · $2% विश्वास · सुझाव: मंगलवार को अतिरिक्त पिकअप शेड्यूल करें या मेंटेनेंस टीम को सूचित करें।'],
+  ];
+
   function tr(text) {
     if (typeof text !== 'string' || lang() !== 'HI') return text;
     const t0 = text.trim();
     if (!t0) return text;
-    return HI_DICT[t0] ? text.replace(t0, HI_DICT[t0]) : text;
+    if (HI_DICT[t0]) return text.replace(t0, HI_DICT[t0]);
+    for (const [re, hi] of HI_PATTERNS) {
+      const m = t0.match(re);
+      if (m) {
+        let out = hi;
+        for (let i = m.length - 1; i >= 1; i--) out = out.replace('$' + i, m[i]);
+        return text.replace(t0, out);
+      }
+    }
+    return text;
   }
 
   const I18N_ATTRS = ['placeholder', 'title', 'aria-label', 'alt'];
   const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA']);
+  // Resolve a trimmed string to its Hindi form via dict OR regex pattern.
+  // Returns null if no match — caller leaves the text unchanged.
+  function _hiResolve(t0) {
+    if (HI_DICT[t0]) return HI_DICT[t0];
+    for (const [re, hi] of HI_PATTERNS) {
+      const m = t0.match(re);
+      if (m) {
+        let out = hi;
+        for (let i = m.length - 1; i >= 1; i--) out = out.replace('$' + i, m[i]);
+        return out;
+      }
+    }
+    return null;
+  }
   function translateNode(root) {
     if (!root || lang() !== 'HI') return;
     if (root.nodeType === 3) {
       const t0 = root.nodeValue?.trim();
-      if (t0 && HI_DICT[t0]) root.nodeValue = root.nodeValue.replace(t0, HI_DICT[t0]);
+      const hi = t0 ? _hiResolve(t0) : null;
+      if (hi) root.nodeValue = root.nodeValue.replace(t0, hi);
       return;
     }
     if (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11) return;
@@ -647,7 +707,8 @@ window.api = (() => {
     let n;
     while ((n = walker.nextNode())) {
       const t0 = n.nodeValue.trim();
-      if (HI_DICT[t0]) updates.push([n, n.nodeValue.replace(t0, HI_DICT[t0])]);
+      const hi = _hiResolve(t0);
+      if (hi) updates.push([n, n.nodeValue.replace(t0, hi)]);
     }
     updates.forEach(([nn, v]) => { nn.nodeValue = v; });
     const els = (root.nodeType === 1 ? [root] : []).concat(
@@ -658,33 +719,38 @@ window.api = (() => {
         const v = el.getAttribute && el.getAttribute(attr);
         if (v) {
           const tv = v.trim();
-          if (HI_DICT[tv]) el.setAttribute(attr, HI_DICT[tv]);
+          const hi = _hiResolve(tv);
+          if (hi) el.setAttribute(attr, hi);
         }
       });
       if ((el.tagName === 'INPUT' || el.tagName === 'BUTTON') && el.value) {
         const tv = String(el.value).trim();
-        if (HI_DICT[tv]) el.value = HI_DICT[tv];
+        const hi = _hiResolve(tv);
+        if (hi) el.value = hi;
       }
     });
   }
   let _i18nObs = null;
+  let _i18nPaused = false;
   function startI18nObserver() {
     if (_i18nObs || !document.body) return;
     _i18nObs = new MutationObserver((muts) => {
-      if (lang() !== 'HI') return;
+      if (_i18nPaused || lang() !== 'HI') return;
       for (const m of muts) {
         if (m.type === 'childList') {
           m.addedNodes.forEach((node) => translateNode(node));
         } else if (m.type === 'characterData') {
           const t0 = m.target.nodeValue?.trim();
-          if (t0 && HI_DICT[t0]) m.target.nodeValue = m.target.nodeValue.replace(t0, HI_DICT[t0]);
+          const hi = t0 ? _hiResolve(t0) : null;
+          if (hi) m.target.nodeValue = m.target.nodeValue.replace(t0, hi);
         } else if (m.type === 'attributes') {
           const el = m.target;
           const a = m.attributeName;
           const v = el.getAttribute(a);
           if (v) {
             const tv = v.trim();
-            if (HI_DICT[tv]) el.setAttribute(a, HI_DICT[tv]);
+            const hi = _hiResolve(tv);
+            if (hi) el.setAttribute(a, hi);
           }
         }
       }
@@ -693,6 +759,15 @@ window.api = (() => {
       childList: true, subtree: true, characterData: true,
       attributes: true, attributeFilter: I18N_ATTRS.concat(['value']),
     });
+  }
+  // Used by callers that bulk-replace DOM (e.g. dashboard.js paint()).
+  // Pausing avoids the observer firing thousands of mutation events while
+  // innerHTML is rewritten; the caller does a single batch translateNode
+  // pass after the rewrite is done.
+  function pauseI18n() { _i18nPaused = true; }
+  function resumeI18n() {
+    _i18nPaused = false;
+    if (lang() === 'HI') translateNode(document.body);
   }
   function bootI18n() {
     document.documentElement.lang = lang().toLowerCase();
@@ -728,5 +803,5 @@ window.api = (() => {
     catch { return {}; }
   }
 
-  return { token, setToken, user, setUser, http, logout, toast, fmtINR, fmtTime, lang, setLang, t, tr, translateNode, _state };
+  return { token, setToken, user, setUser, http, logout, toast, fmtINR, fmtTime, lang, setLang, t, tr, translateNode, pauseI18n, resumeI18n, _state };
 })();

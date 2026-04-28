@@ -782,14 +782,44 @@ window.api = (() => {
     'Last check — really delete all local data?': 'अंतिम जाँच — क्या सच में सारा लोकल डेटा हटाएँ?',
   };
 
-  // Aliases used by `tr` to handle status-strings rendered with underscores
-  // converted to spaces (e.g. `EN_ROUTE` → `EN ROUTE`).
+  // Pattern fallback for dynamic mobile strings (counts + units + names).
+  const HI_PATTERNS = [
+    [/^(\d+) (open|completed today)$/, function (m) { return m[2] === 'open' ? `$1 खुले` : `$1 आज पूरे`; }],
+    [/^(\d+) past tasks$/, '$1 पिछले कार्य'],
+    [/^(\d+) total$/, 'कुल $1'],
+    [/^(\d+) services$/, '$1 सेवाएँ'],
+    [/^(\d+) services scheduled$/, '$1 सेवाएँ शेड्यूल'],
+    [/^(\d+) of (\d+)$/, '$1 / $2'],
+    [/^(\d+) item(s)? scheduled$/, '$1 आइटम शेड्यूल'],
+    [/^(\d+)% organic · (\d+)% recyclable$/, '$1% जैविक · $2% पुनर्चक्रण योग्य'],
+    [/^(\d+)-week streak$/, '$1-सप्ताह स्ट्रीक'],
+    [/^(\d+) tree-months$/, '$1 पेड़-महीने'],
+    [/^(\d+) total bookings$/, 'कुल $1 बुकिंग'],
+    [/^Demo: \+91(\d+) · OTP (\d+)$/, 'डेमो: +91$1 · OTP $2'],
+  ];
+  function _hiResolveMobile(t0) {
+    if (HI_DICT[t0]) return HI_DICT[t0];
+    for (const [re, hi] of HI_PATTERNS) {
+      const m = t0.match(re);
+      if (m) {
+        if (typeof hi === 'function') {
+          let out = hi(m);
+          for (let i = m.length - 1; i >= 1; i--) out = out.replace('$' + i, m[i]);
+          return out;
+        }
+        let out = hi;
+        for (let i = m.length - 1; i >= 1; i--) out = out.replace('$' + i, m[i]);
+        return out;
+      }
+    }
+    return null;
+  }
   function tr(text) {
     if (typeof text !== 'string' || lang() !== 'HI') return text;
     const trimmed = text.trim();
     if (!trimmed) return text;
-    if (HI_DICT[trimmed]) return text.replace(trimmed, HI_DICT[trimmed]);
-    return text;
+    const hi = _hiResolveMobile(trimmed);
+    return hi ? text.replace(trimmed, hi) : text;
   }
 
   // Translate text inside a DOM subtree. Walks every text node, plus the
@@ -800,7 +830,8 @@ window.api = (() => {
     if (!root || lang() !== 'HI') return;
     if (root.nodeType === 3) {
       const t0 = root.nodeValue?.trim();
-      if (t0 && HI_DICT[t0]) root.nodeValue = root.nodeValue.replace(t0, HI_DICT[t0]);
+      const hi = t0 ? _hiResolveMobile(t0) : null;
+      if (hi) root.nodeValue = root.nodeValue.replace(t0, hi);
       return;
     }
     if (root.nodeType !== 1 && root.nodeType !== 9 && root.nodeType !== 11) return;
@@ -816,7 +847,8 @@ window.api = (() => {
     let n;
     while ((n = walker.nextNode())) {
       const t0 = n.nodeValue.trim();
-      if (HI_DICT[t0]) updates.push([n, n.nodeValue.replace(t0, HI_DICT[t0])]);
+      const hi = _hiResolveMobile(t0);
+      if (hi) updates.push([n, n.nodeValue.replace(t0, hi)]);
     }
     updates.forEach(([nn, v]) => { nn.nodeValue = v; });
     // Attributes
@@ -828,35 +860,40 @@ window.api = (() => {
         const v = el.getAttribute && el.getAttribute(attr);
         if (v) {
           const tv = v.trim();
-          if (HI_DICT[tv]) el.setAttribute(attr, HI_DICT[tv]);
+          const hi = _hiResolveMobile(tv);
+          if (hi) el.setAttribute(attr, hi);
         }
       });
       if ((el.tagName === 'INPUT' || el.tagName === 'BUTTON') && el.value) {
         const tv = String(el.value).trim();
-        if (HI_DICT[tv]) el.value = HI_DICT[tv];
+        const hi = _hiResolveMobile(tv);
+        if (hi) el.value = hi;
       }
     });
   }
 
   // Live observer — translates anything added/changed after initial paint.
   let _i18nObs = null;
+  let _i18nPaused = false;
   function startI18nObserver() {
     if (_i18nObs || !document.body) return;
     _i18nObs = new MutationObserver((muts) => {
-      if (lang() !== 'HI') return;
+      if (_i18nPaused || lang() !== 'HI') return;
       for (const m of muts) {
         if (m.type === 'childList') {
           m.addedNodes.forEach((node) => translateNode(node));
         } else if (m.type === 'characterData') {
           const t0 = m.target.nodeValue?.trim();
-          if (t0 && HI_DICT[t0]) m.target.nodeValue = m.target.nodeValue.replace(t0, HI_DICT[t0]);
+          const hi = t0 ? _hiResolveMobile(t0) : null;
+          if (hi) m.target.nodeValue = m.target.nodeValue.replace(t0, hi);
         } else if (m.type === 'attributes') {
           const el = m.target;
           const a = m.attributeName;
           const v = el.getAttribute(a);
           if (v) {
             const tv = v.trim();
-            if (HI_DICT[tv]) el.setAttribute(a, HI_DICT[tv]);
+            const hi = _hiResolveMobile(tv);
+            if (hi) el.setAttribute(a, hi);
           }
         }
       }
@@ -865,6 +902,11 @@ window.api = (() => {
       childList: true, subtree: true, characterData: true,
       attributes: true, attributeFilter: I18N_ATTRS.concat(['value']),
     });
+  }
+  function pauseI18n() { _i18nPaused = true; }
+  function resumeI18n() {
+    _i18nPaused = false;
+    if (lang() === 'HI') translateNode(document.body);
   }
   function bootI18n() {
     document.documentElement.lang = lang().toLowerCase();
@@ -1372,7 +1414,7 @@ window.api = (() => {
     token, setToken, user, setUser,
     http, connectSocket, logout, requireAuth,
     toast, fmtINR, fmtTime,
-    lang, setLang, t, tr, translateNode,
+    lang, setLang, t, tr, translateNode, pauseI18n, resumeI18n,
     renderTopbar, agentLocation,
     deviceId, syncUrl, setSyncUrl,
     // Expose for debugging only
