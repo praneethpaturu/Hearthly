@@ -74,7 +74,7 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').cat
   if (stored) base = stored;
   else if (envUrl) base = envUrl;
   else if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') base = 'http://localhost:4040';
-  else base = location.origin + '/cmcc'; // single-domain fallback
+  else base = 'https://hearthly-cmcc.vercel.app'; // production sibling project
   base = base.replace(/\/$/, '');
   const cmcc = document.getElementById('cmccLink');
   const citizen = document.getElementById('citizenLink');

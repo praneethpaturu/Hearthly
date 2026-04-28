@@ -297,7 +297,7 @@ function paint() {
     if (stored) return stored.replace(/\/$/, '') + '/';
     if (window.HEARTHLY_CMCC_URL) return window.HEARTHLY_CMCC_URL.replace(/\/$/, '') + '/';
     if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return 'http://localhost:4040/';
-    return location.origin + '/cmcc/';
+    return 'https://hearthly-cmcc.vercel.app/';
   })();
   const _topLink = document.getElementById('cmccTopLink');
   if (_topLink) _topLink.href = _cmccUrl;

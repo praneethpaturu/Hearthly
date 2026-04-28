@@ -381,21 +381,32 @@ window.providers = (() => {
     },
   };
 
-  // ── OpenAI (real, if key in localStorage) ────────────────────────────
+  // ── OpenAI ───────────────────────────────────────────────────────────
+  // Two-tier auth: if the user has set their own personal key in
+  // localStorage we send requests directly to api.openai.com (their key,
+  // their bill). Otherwise we fall back to the Hearthly server-side
+  // proxy at /api/ai/* which holds OPENAI_API_KEY in Vercel env vars —
+  // the key never reaches the browser.
   const openai = {
     KEY_STORE: 'vl_openai_key',
+    PROXY_BASE: '/api/ai',
     getKey() { return localStorage.getItem(this.KEY_STORE) || ''; },
     setKey(k) { if (k) localStorage.setItem(this.KEY_STORE, k); else localStorage.removeItem(this.KEY_STORE); },
-    hasKey() { return !!this.getKey(); },
+    // Treat the proxy as "has key" on any non-localhost host (the
+    // deployed sites have the function; local dev doesn't unless the
+    // user runs `vercel dev`). The user's own key, if set, always wins.
+    _proxyAvailable() {
+      const h = (typeof location !== 'undefined') ? location.hostname : '';
+      return h !== 'localhost' && h !== '127.0.0.1' && h !== '';
+    },
+    hasKey() { return !!this.getKey() || this._proxyAvailable(); },
 
     async _post(path, body) {
-      const key = this.getKey();
-      if (!key) throw new Error('OpenAI key not set — open Settings');
-      const r = await fetch('https://api.openai.com/v1' + path, {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      const userKey = this.getKey();
+      const url = userKey ? ('https://api.openai.com/v1' + path) : (this.PROXY_BASE + path.replace('/chat/completions', '/chat'));
+      const headers = { 'Content-Type': 'application/json' };
+      if (userKey) headers.Authorization = 'Bearer ' + userKey;
+      const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
       if (!r.ok) throw new Error('OpenAI: ' + r.status + ' ' + (await r.text()).slice(0, 200));
       return r.json();
     },
@@ -412,15 +423,14 @@ window.providers = (() => {
 
     // Whisper STT — accepts a Blob/File.
     async transcribe(audioBlob, language = 'en') {
-      const key = this.getKey();
-      if (!key) throw new Error('OpenAI key not set');
+      const userKey = this.getKey();
       const fd = new FormData();
       fd.append('file', audioBlob, 'recording.webm');
       fd.append('model', 'whisper-1');
       fd.append('language', language);
-      const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: fd,
-      });
+      const url = userKey ? 'https://api.openai.com/v1/audio/transcriptions' : (this.PROXY_BASE + '/transcribe');
+      const headers = userKey ? { Authorization: 'Bearer ' + userKey } : {};
+      const r = await fetch(url, { method: 'POST', headers, body: fd });
       if (!r.ok) throw new Error('Whisper: ' + r.status);
       return r.json();
     },

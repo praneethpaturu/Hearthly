@@ -38,18 +38,24 @@ window.providers = (() => {
     clear() { _write([]); window.dispatchEvent(new CustomEvent('vl:push', { detail: null })); },
   };
 
-  // OpenAI relay (frontend-keyed). Rotate any key shared anywhere.
+  // OpenAI — two-tier: user's localStorage key (direct OpenAI) or
+  // the Hearthly server-side proxy (/api/ai/*) holding the key in env.
   const openai = {
     KEY_STORE: 'vl_cmcc_openai_key',
+    PROXY_BASE: '/api/ai',
     getKey() { return localStorage.getItem(this.KEY_STORE) || ''; },
     setKey(k) { if (k) localStorage.setItem(this.KEY_STORE, k); else localStorage.removeItem(this.KEY_STORE); },
-    hasKey() { return !!this.getKey(); },
+    _proxyAvailable() {
+      const h = (typeof location !== 'undefined') ? location.hostname : '';
+      return h !== 'localhost' && h !== '127.0.0.1' && h !== '';
+    },
+    hasKey() { return !!this.getKey() || this._proxyAvailable(); },
     async _post(path, body) {
-      const key = this.getKey();
-      if (!key) throw new Error('OpenAI key not set');
-      const r = await fetch('https://api.openai.com/v1' + path, {
-        method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-      });
+      const userKey = this.getKey();
+      const url = userKey ? ('https://api.openai.com/v1' + path) : (this.PROXY_BASE + path.replace('/chat/completions', '/chat'));
+      const headers = { 'Content-Type': 'application/json' };
+      if (userKey) headers.Authorization = 'Bearer ' + userKey;
+      const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
       if (!r.ok) throw new Error('OpenAI: ' + r.status);
       return r.json();
     },
@@ -61,10 +67,12 @@ window.providers = (() => {
       });
     },
     async transcribe(audioBlob, language = 'en') {
-      const key = this.getKey(); if (!key) throw new Error('OpenAI key not set');
+      const userKey = this.getKey();
       const fd = new FormData(); fd.append('file', audioBlob, 'recording.webm');
       fd.append('model', 'whisper-1'); fd.append('language', language);
-      const r = await fetch('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: fd });
+      const url = userKey ? 'https://api.openai.com/v1/audio/transcriptions' : (this.PROXY_BASE + '/transcribe');
+      const headers = userKey ? { Authorization: 'Bearer ' + userKey } : {};
+      const r = await fetch(url, { method: 'POST', headers, body: fd });
       if (!r.ok) throw new Error('Whisper: ' + r.status);
       return r.json();
     },

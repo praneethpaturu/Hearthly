@@ -372,7 +372,7 @@
       if (stored) base = stored;
       else if (envUrl) base = envUrl;
       else if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') base = 'http://localhost:3030';
-      else base = location.origin.replace(/-cmcc(\.|$)/, '$1'); // sibling project guess
+      else base = 'https://hearthly-drab.vercel.app'; // production sibling project
       window.open(base.replace(/\/$/, '') + '/admin.html', '_blank');
     };
     const bellBtn = document.getElementById('bellBtn');
