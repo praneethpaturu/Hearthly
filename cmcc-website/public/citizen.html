@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#1e40af" />
+<title>Telangana Citizen Portal · Real-Time Governance</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined" />
+<style>
+  :root {
+    --bg: #f8fafc;
+    --panel: #fff;
+    --line: #e2e8f0;
+    --line-soft: #f1f5f9;
+    --ink: #0f172a;
+    --ink-2: #334155;
+    --muted: #64748b;
+    --tg: #f59e0b;       /* Telangana state colour scheme — amber/red */
+    --tg-2: #dc2626;
+    --tg-blue: #1e40af;
+    --ok: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --shadow: 0 4px 12px rgba(0,0,0,.06);
+    --shadow-lg: 0 20px 40px -12px rgba(0,0,0,.18);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--tg-blue); text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; }
+
+  /* Government-style top banner */
+  .gov-bar {
+    background: linear-gradient(90deg, #f59e0b 0%, #dc2626 100%);
+    color: #fff; padding: 6px 16px; font-size: 11px; letter-spacing: .05em;
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    text-transform: uppercase; font-weight: 600;
+  }
+  .gov-bar .dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; opacity: .7; }
+  .gov-bar .lang { background: rgba(255,255,255,.2); padding: 2px 8px; border-radius: 4px; cursor: pointer; }
+  .gov-bar .lang:hover { background: rgba(255,255,255,.3); }
+
+  .header {
+    background: #fff; border-bottom: 1px solid var(--line); padding: 14px 24px;
+    display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 10;
+    box-shadow: var(--shadow);
+  }
+  .header .logo {
+    width: 44px; height: 44px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--tg) 0%, var(--tg-2) 100%);
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 20px;
+    box-shadow: 0 4px 12px rgba(245,158,11,.3);
+  }
+  .header .brand .t1 { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+  .header .brand .t2 { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .header .spacer { flex: 1; }
+  .header .top-link {
+    color: var(--ink-2); font-size: 13px; font-weight: 500;
+    padding: 6px 12px; border-radius: 6px;
+    transition: background .15s;
+  }
+  .header .top-link:hover { background: var(--line-soft); color: var(--ink); }
+
+  .hero {
+    padding: 56px 24px 40px;
+    background:
+      radial-gradient(800px 400px at 90% 0, rgba(245,158,11,.10), transparent 60%),
+      radial-gradient(700px 300px at 10% 100%, rgba(30,64,175,.06), transparent 60%);
+    text-align: center;
+  }
+  .hero .kicker {
+    display: inline-block; background: rgba(245,158,11,.15); color: var(--tg-2);
+    padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; margin-bottom: 16px;
+  }
+  .hero h1 {
+    margin: 0 0 14px; font-size: clamp(28px, 6vw, 42px); font-weight: 800; letter-spacing: -.025em; line-height: 1.1;
+  }
+  .hero p { margin: 0 auto; max-width: 640px; color: var(--ink-2); font-size: 16px; line-height: 1.5; }
+
+  .container { max-width: 1240px; margin: 0 auto; padding: 0 24px 48px; }
+
+  .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 32px; }
+  .quick {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 18px; text-align: center; cursor: pointer; transition: all .15s;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    text-decoration: none; color: var(--ink);
+  }
+  .quick:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--tg); }
+  .quick .ico {
+    width: 48px; height: 48px; border-radius: 14px;
+    background: linear-gradient(135deg, #fef3c7, #fed7aa);
+    display: grid; place-items: center;
+    font-family: 'Material Symbols Outlined'; font-size: 26px; color: var(--tg-2);
+  }
+  .quick .lbl { font-weight: 700; font-size: 13px; }
+  .quick .sub { color: var(--muted); font-size: 11px; }
+
+  .section-h { margin: 36px 0 14px; font-size: 18px; font-weight: 700; letter-spacing: -.01em; display: flex; align-items: center; gap: 8px; }
+  .section-h .badge { background: var(--tg); color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
+  .card .muted { color: var(--muted); font-size: 12px; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .kpi .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+  .kpi .val { font-size: 26px; font-weight: 800; letter-spacing: -.02em; margin-top: 6px; }
+  .kpi .delta { font-size: 11px; font-weight: 600; margin-top: 4px; }
+  .kpi .delta.up { color: var(--ok); }
+
+  .gri-row {
+    display: flex; gap: 12px; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid var(--line-soft);
+  }
+  .gri-row:last-child { border-bottom: 0; }
+  .gri-row .ico {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--line-soft); display: grid; place-items: center;
+    font-family: 'Material Symbols Outlined'; color: var(--tg-2); font-size: 18px;
+  }
+  .gri-row .meta { flex: 1; min-width: 0; }
+  .gri-row .meta .t1 { font-weight: 600; font-size: 13px; }
+  .gri-row .meta .t2 { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .gri-row .badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .gri-row .badge.ok { background: #d1fae5; color: #065f46; }
+  .gri-row .badge.warn { background: #fef3c7; color: #92400e; }
+  .gri-row .badge.bad { background: #fee2e2; color: #991b1b; }
+  .gri-row .badge.info { background: #dbeafe; color: #1e40af; }
+
+  .scheme-card {
+    border: 1px solid var(--line); border-radius: 12px; padding: 14px; cursor: pointer;
+    transition: all .15s; background: #fff;
+  }
+  .scheme-card:hover { border-color: var(--tg); transform: translateY(-1px); box-shadow: var(--shadow); }
+  .scheme-card .nm { font-weight: 700; font-size: 13px; }
+  .scheme-card .ds { color: var(--muted); font-size: 11px; margin-top: 4px; line-height: 1.5; }
+
+  /* Report sheet */
+  .sheet-wrap { position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 100; display: grid; place-items: end; }
+  @media (min-width: 720px) { .sheet-wrap { place-items: center; } }
+  .sheet-card {
+    background: #fff; border-radius: 22px 22px 0 0; padding: 22px 22px 32px;
+    width: 100%; max-width: 460px; max-height: 88dvh; overflow-y: auto;
+  }
+  @media (min-width: 720px) { .sheet-card { border-radius: 22px; } }
+  .sheet-card h3 { margin: 0 0 6px; font-size: 18px; font-weight: 700; }
+  .sheet-card .desc { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .sheet-card label { display: block; font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+  .sheet-card input, .sheet-card select, .sheet-card textarea {
+    width: 100%; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px;
+    font-family: inherit; font-size: 14px; outline: none; margin-bottom: 12px;
+  }
+  .sheet-card input:focus, .sheet-card select:focus, .sheet-card textarea:focus { border-color: var(--tg); box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+  .sheet-card .btn-primary {
+    width: 100%; padding: 13px; background: linear-gradient(135deg, var(--tg) 0%, var(--tg-2) 100%);
+    color: #fff; border: 0; border-radius: 10px; font-weight: 700; font-size: 14px; margin-top: 4px;
+    box-shadow: 0 6px 18px -4px rgba(245,158,11,.4);
+  }
+  .sheet-card .btn-secondary {
+    width: 100%; padding: 11px; background: transparent; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 10px; font-weight: 600; font-size: 13px; margin-top: 8px;
+  }
+  .sheet-grid-cat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .sheet-grid-cat .c {
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 6px;
+    text-align: center; cursor: pointer; font-size: 11px;
+    display: flex; flex-direction: column; gap: 4px; align-items: center;
+  }
+  .sheet-grid-cat .c.on { border-color: var(--tg); background: rgba(245,158,11,.08); }
+  .sheet-grid-cat .c .ico {
+    width: 30px; height: 30px; border-radius: 8px; background: var(--line-soft);
+    display: grid; place-items: center; font-family: 'Material Symbols Outlined';
+    color: var(--tg-2); font-size: 18px;
+  }
+
+  .ticker {
+    background: #1e40af; color: #fff; padding: 10px 16px; font-size: 12px;
+    display: flex; align-items: center; gap: 14px; overflow: hidden;
+  }
+  .ticker .tag { background: #fff; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-weight: 800; letter-spacing: .06em; font-size: 10px; }
+  .ticker .stream { flex: 1; white-space: nowrap; overflow: hidden; }
+  .ticker .stream .strip { display: inline-block; padding-left: 100%; animation: scroll 50s linear infinite; }
+  .ticker .stream .strip span { margin-right: 30px; }
+  @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+
+  .toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #0f172a; color: #fff; padding: 10px 18px; border-radius: 999px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: all .25s; z-index: 200;
+    box-shadow: var(--shadow-lg);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .footer { padding: 28px 24px; text-align: center; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); margin-top: 32px; }
+  .footer a { margin: 0 8px; }
+</style>
+</head>
+<body>
+<div class="gov-bar">
+  <span>🇮🇳 भारत सरकार · Government of Telangana</span>
+  <span class="dot"></span>
+  <span>Real-Time Governance · Live</span>
+  <span class="dot"></span>
+  <select class="lang" id="langSel" style="background: rgba(255,255,255,.2); color: #fff; border: 0; padding: 2px 8px; border-radius: 4px; font: inherit; font-size: 11px; font-weight: 600;">
+    <option value="EN">EN</option>
+    <option value="HI">हिन्दी</option>
+  </select>
+</div>
+
+<div class="header">
+  <div class="logo">తె</div>
+  <div class="brand">
+    <div class="t1">Telangana Citizen Portal</div>
+    <div class="t2">Mee-Seva enabled · Aadhaar / DigiLocker login</div>
+  </div>
+  <div class="spacer"></div>
+  <a class="top-link" href="#track">Track grievance</a>
+  <a class="top-link" href="#schemes">Schemes</a>
+  <a class="top-link" href="#opendata">Open data</a>
+  <a class="top-link" href="/" target="_self" style="background: var(--tg-blue); color: #fff;">Govt login</a>
+</div>
+
+<div class="hero">
+  <span class="kicker">🌟 Powered by Real-Time Governance</span>
+  <h1>Report any civic issue in 30 seconds</h1>
+  <p>Snap a photo, drop a pin, send. Auto-routed to your ward officer with SLA tracking. Available in <b>Telugu, Hindi, English, Urdu</b> · also via WhatsApp + missed-call.</p>
+
+  <div class="quick-grid">
+    <a class="quick" data-cat="Garbage"><span class="ico">recycling</span><span class="lbl">Garbage</span><span class="sub">12h SLA</span></a>
+    <a class="quick" data-cat="Water"><span class="ico">water_drop</span><span class="lbl">Water</span><span class="sub">24h SLA</span></a>
+    <a class="quick" data-cat="Streetlight"><span class="ico">lightbulb</span><span class="lbl">Streetlight</span><span class="sub">48h SLA</span></a>
+    <a class="quick" data-cat="Roads"><span class="ico">route</span><span class="lbl">Roads</span><span class="sub">96h SLA</span></a>
+    <a class="quick" data-cat="Sewage"><span class="ico">plumbing</span><span class="lbl">Sewage</span><span class="sub">24h SLA</span></a>
+    <a class="quick" data-cat="Stray"><span class="ico">pets</span><span class="lbl">Stray animals</span><span class="sub">72h SLA</span></a>
+    <a class="quick" data-cat="Encroachment"><span class="ico">fence</span><span class="lbl">Encroachment</span><span class="sub">120h SLA</span></a>
+    <a class="quick" data-cat="Mosquito"><span class="ico">pest_control</span><span class="lbl">Fogging</span><span class="sub">48h SLA</span></a>
+  </div>
+</div>
+
+<div class="ticker">
+  <span class="tag">LIVE</span>
+  <div class="stream"><div class="strip">
+    <span>✓ Bin overflow at Madhapur resolved in 6h 14m</span>
+    <span>✓ Streetlight at Kukatpally restored</span>
+    <span>⚠ Heatwave alert · 41°C tomorrow · stay hydrated</span>
+    <span>✓ Drain unblocked at LB Nagar</span>
+    <span>📊 GHMC SBM rank: ↑ 3 spots this week</span>
+    <span>✓ 234 grievances resolved today across Telangana</span>
+    <span>💧 Mission Bhagiratha · 24/7 water in 9,512 villages</span>
+    <span>✓ Pothole on Inner Ring Road repaired</span>
+    <span>🏆 Banjara Hills awarded 5-star SBM rating</span>
+  </div></div>
+</div>
+
+<div class="container">
+
+  <h2 class="section-h">Telangana at a glance <span class="badge">Live</span></h2>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="lbl">Citizens registered</div><div class="val">62.4 L</div><div class="delta up">▲ 1.2K today</div></div>
+    <div class="kpi"><div class="lbl">Grievances resolved (today)</div><div class="val">2,341</div><div class="delta up">94% within SLA</div></div>
+    <div class="kpi"><div class="lbl">Avg resolution time</div><div class="val">17h 32m</div><div class="delta up">▼ 2h vs last month</div></div>
+    <div class="kpi"><div class="lbl">Citizen NPS</div><div class="val">8.4 / 10</div><div class="delta up">▲ 0.3</div></div>
+    <div class="kpi"><div class="lbl">Smart bins live</div><div class="val">14,820</div><div class="delta up">across 6 ULBs</div></div>
+    <div class="kpi"><div class="lbl">SBM 5-star wards</div><div class="val">28</div><div class="delta up">▲ 4 this quarter</div></div>
+  </div>
+
+  <h2 class="section-h" id="track">Recently resolved in your area</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Last 24 hours · Hyderabad</h3>
+      <div class="gri-row"><div class="ico">recycling</div><div class="meta"><div class="t1">Bin overflow at Banjara Hills Road no.12</div><div class="t2">Resolved in 4h 22m · GRV-10847</div></div><span class="badge ok">RESOLVED</span></div>
+      <div class="gri-row"><div class="ico">lightbulb</div><div class="meta"><div class="t1">Streetlight pole at Madhapur metro station</div><div class="t2">Resolved in 2h 11m · GRV-10852</div></div><span class="badge ok">RESOLVED</span></div>
+      <div class="gri-row"><div class="ico">water_drop</div><div class="meta"><div class="t1">Water shortage at Kukatpally Phase III</div><div class="t2">Pump deployed · in progress · GRV-10861</div></div><span class="badge warn">IN PROGRESS</span></div>
+      <div class="gri-row"><div class="ico">plumbing</div><div class="meta"><div class="t1">Manhole open at LB Nagar</div><div class="t2">Resolved in 1h 48m · GRV-10870</div></div><span class="badge ok">RESOLVED</span></div>
+      <div class="gri-row"><div class="ico">route</div><div class="meta"><div class="t1">Pothole at Gachibowli ORR junction</div><div class="t2">Patched · GRV-10881</div></div><span class="badge ok">RESOLVED</span></div>
+    </div>
+
+    <div class="card">
+      <h3>Track your grievance</h3>
+      <p class="muted" style="margin: 0 0 14px;">Enter the GRV ID you received via SMS to see real-time status and ward-officer assignment.</p>
+      <div style="display:flex; gap:8px; margin-bottom: 16px;">
+        <input id="trackInp" placeholder="GRV-10847" style="flex:1; padding:10px 14px; border: 1px solid var(--line); border-radius: 8px; font-family: inherit;" />
+        <button class="btn-primary" id="trackBtn" style="width: auto; padding: 10px 18px; background: linear-gradient(135deg, #f59e0b, #dc2626); color: #fff; border: 0; border-radius: 8px; font-weight: 700; cursor: pointer;">Track</button>
+      </div>
+      <div id="trackResult"></div>
+
+      <h3 style="margin-top: 20px;">Other ways to report</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; font-size: 12px;">
+        <div style="padding: 12px; background: var(--line-soft); border-radius: 10px;"><b>📱 WhatsApp</b><br/><span class="muted">+91 8688 8888 88</span></div>
+        <div style="padding: 12px; background: var(--line-soft); border-radius: 10px;"><b>📞 Missed call</b><br/><span class="muted">1800 425 6900</span></div>
+        <div style="padding: 12px; background: var(--line-soft); border-radius: 10px;"><b>🏢 Mee-Seva centres</b><br/><span class="muted">4,587 across TS</span></div>
+        <div style="padding: 12px; background: var(--line-soft); border-radius: 10px;"><b>🆘 Emergency</b><br/><span class="muted">Dial 100 / 108</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-h" id="schemes">Telangana welfare schemes</h2>
+  <div class="grid-2" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+    <div class="scheme-card"><div class="nm">🏠 2BHK Housing</div><div class="ds">Free pucca house for eligible BPL families. Apply with Aadhaar + ration card.</div></div>
+    <div class="scheme-card"><div class="nm">💧 Mission Bhagiratha</div><div class="ds">24×7 piped drinking water to every household. 9,512 villages connected.</div></div>
+    <div class="scheme-card"><div class="nm">🏥 Aarogyasri</div><div class="ds">Cashless treatment up to ₹10 L for BPL families at empanelled hospitals.</div></div>
+    <div class="scheme-card"><div class="nm">👶 KCR Kit</div><div class="ds">Free nutrition kit + ₹12,000–13,000 incentive for institutional delivery.</div></div>
+    <div class="scheme-card"><div class="nm">👵 Aasara Pensions</div><div class="ds">₹2,016 monthly for elderly, widows, single women, weavers, toddy-tappers.</div></div>
+    <div class="scheme-card"><div class="nm">📱 T-App Folio</div><div class="ds">Single sign-on for 200+ TS Government services on your mobile.</div></div>
+    <div class="scheme-card"><div class="nm">💼 T-Wallet</div><div class="ds">Digital wallet for fee payment, scholarships, govt subsidies.</div></div>
+    <div class="scheme-card"><div class="nm">🎓 T-SAT Skill Training</div><div class="ds">Free vocational training across 200+ centres. Job placement support.</div></div>
+  </div>
+
+  <h2 class="section-h" id="opendata">Open data <span class="badge">RTI-compliant</span></h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Available downloads</h3>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+        <a class="gri-row" style="cursor: pointer;"><div class="ico">download</div><div class="meta"><div class="t1">All grievances 2026 Q1 · CSV</div><div class="t2">3.4 MB · anonymised · updated daily</div></div><span class="badge info">CSV</span></a>
+        <a class="gri-row" style="cursor: pointer;"><div class="ico">download</div><div class="meta"><div class="t1">Ward-wise SBM scorecard · JSON</div><div class="t2">820 KB · live API</div></div><span class="badge info">JSON</span></a>
+        <a class="gri-row" style="cursor: pointer;"><div class="ico">download</div><div class="meta"><div class="t1">Sanitation budget utilisation · XLSX</div><div class="t2">1.2 MB · PFMS-synced</div></div><span class="badge info">XLSX</span></a>
+        <a class="gri-row" style="cursor: pointer;"><div class="ico">download</div><div class="meta"><div class="t1">Air quality (CPCB feed) · API</div><div class="t2">Real-time · all GHMC zones</div></div><span class="badge info">API</span></a>
+        <a class="gri-row" style="cursor: pointer;"><div class="ico">download</div><div class="meta"><div class="t1">Mission Bhagiratha coverage · GeoJSON</div><div class="t2">12.8 MB · ward boundaries</div></div><span class="badge info">GeoJSON</span></a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Public dashboards</h3>
+      <p class="muted" style="margin: 0 0 14px;">Anyone can view the same KPIs that government officers see — full transparency.</p>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <a class="scheme-card" style="text-align: center;"><div class="nm">📊 SBM Live</div><div class="ds">Star ratings, segregation, ODF status</div></a>
+        <a class="scheme-card" style="text-align: center;"><div class="nm">🌫 Air Quality</div><div class="ds">AQI by ward · 15-min refresh</div></a>
+        <a class="scheme-card" style="text-align: center;"><div class="nm">💰 Budget tracker</div><div class="ds">Ward-wise spending live</div></a>
+        <a class="scheme-card" style="text-align: center;"><div class="nm">🏆 Ward leaderboard</div><div class="ds">Best & worst performers</div></a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <p>© Government of Telangana · Real-Time Governance Platform · powered by Hearthly</p>
+  <p style="margin-top: 6px;">
+    <a>Privacy</a>
+    <a>Terms</a>
+    <a>Accessibility</a>
+    <a>RTI</a>
+    <a>Sitemap</a>
+    <a>Helpline 1800 425 6900</a>
+  </p>
+  <p style="margin-top: 6px; font-size: 10px;">CERT-In compliant · DPDP Act 2023 · ISO 27001 · ap-south-1 · 12 languages</p>
+</div>
+
+<div id="reportSheet"></div>
+<div class="toast" id="toast"></div>
+
+<!-- i18n engine: api.js sets up the English↔Hindi DOM translator + MutationObserver -->
+<script src="/api.js"></script>
+<script>
+const _tr = (s) => (window.api && window.api.tr) ? window.api.tr(s) : s;
+const toast = (m) => { const t = document.getElementById('toast'); t.textContent = _tr(m); t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2400); };
+
+// Quick category click → open report sheet
+document.querySelectorAll('.quick[data-cat]').forEach((q) => q.onclick = () => openReport(q.dataset.cat));
+
+function openReport(cat) {
+  const wrap = document.getElementById('reportSheet');
+  const cats = [
+    { id: 'Garbage',     ico: 'recycling',   sla: '12h' },
+    { id: 'Water',       ico: 'water_drop',  sla: '24h' },
+    { id: 'Streetlight', ico: 'lightbulb',   sla: '48h' },
+    { id: 'Roads',       ico: 'route',       sla: '96h' },
+    { id: 'Sewage',      ico: 'plumbing',    sla: '24h' },
+    { id: 'Stray',       ico: 'pets',        sla: '72h' },
+    { id: 'Encroachment',ico: 'fence',       sla: '120h' },
+    { id: 'Mosquito',    ico: 'pest_control',sla: '48h' },
+  ];
+  let chosen = cat;
+  wrap.innerHTML = `
+    <div class="sheet-wrap" id="sw">
+      <div class="sheet-card">
+        <h3>Report a civic issue</h3>
+        <div class="desc">Auto-routed to your ward officer · SLA-tracked · resolved within hours</div>
+
+        <label>Category</label>
+        <div class="sheet-grid-cat">
+          ${cats.map((c) => `<div class="c ${c.id===chosen?'on':''}" data-c="${c.id}"><div class="ico">${c.ico}</div>${c.id}</div>`).join('')}
+        </div>
+
+        <label>What's wrong? (in any language)</label>
+        <textarea rows="3" id="rDesc" placeholder="Bin not picked since Monday morning"></textarea>
+
+        <label>Photo (optional · AI verifies)</label>
+        <input type="file" accept="image/*" capture="environment" id="rPhoto" />
+
+        <label>Location</label>
+        <input id="rLoc" placeholder="Plot no. / landmark / pincode" value="Banjara Hills, Road No. 12, 500034" />
+
+        <label>Mobile (Aadhaar-verified citizens get faster service)</label>
+        <input id="rPhone" placeholder="+91 9XXXXXXXXX" />
+
+        <button class="btn-primary" id="rGo">Submit grievance</button>
+        <button class="btn-secondary" id="rClose">Cancel</button>
+        <p style="font-size: 10px; color: var(--muted); margin-top: 12px; text-align: center;">By submitting you agree to our DPDP-compliant data policy. Your grievance is logged on a tamper-evident ledger and visible to your ward officer in real time.</p>
+      </div>
+    </div>`;
+  document.querySelectorAll('.sheet-grid-cat .c').forEach((c) => c.onclick = () => {
+    document.querySelectorAll('.sheet-grid-cat .c').forEach((x) => x.classList.remove('on'));
+    c.classList.add('on'); chosen = c.dataset.c;
+  });
+  document.getElementById('sw').onclick = (e) => { if (e.target === document.getElementById('sw')) wrap.innerHTML = ''; };
+  document.getElementById('rClose').onclick = () => wrap.innerHTML = '';
+  document.getElementById('rGo').onclick = () => {
+    const id = 'GRV-' + (10900 + Math.floor(Math.random() * 99));
+    wrap.innerHTML = '';
+    toast(`✓ Submitted as ${id} · auto-routed to ward officer`);
+    setTimeout(() => toast(`SMS sent · WhatsApp confirmation sent to your phone`), 2600);
+    // Persist in localStorage so the dashboard sees it (same browser)
+    try {
+      const seed = JSON.parse(localStorage.getItem('vl_cmcc_muni_seed') || '{}');
+      seed.grievances = seed.grievances || [];
+      seed.grievances.unshift({
+        id, category: chosen, icon: ({Garbage:'recycling',Water:'water_drop',Streetlight:'lightbulb',Roads:'route',Sewage:'plumbing',Stray:'pets',Encroachment:'fence',Mosquito:'pest_control'}[chosen] || 'priority_high'),
+        text: document.getElementById('rDesc').value || 'New grievance via Citizen Portal',
+        ward: 'Banjara Hills Ward', wardId: 'w-ghmc-1',
+        citizen: 'Citizen Portal user', citizen_phone: document.getElementById('rPhone').value || '+91 9XXXXXXXXX',
+        opened: Date.now(),
+        sla_breach_at: Date.now() + 12 * 3600 * 1000,
+        status: 'OPEN', sla_h: 12,
+      });
+      localStorage.setItem('vl_cmcc_muni_seed', JSON.stringify(seed));
+    } catch {}
+  };
+}
+
+document.getElementById('trackBtn').onclick = () => {
+  const id = (document.getElementById('trackInp').value || '').trim().toUpperCase();
+  const el = document.getElementById('trackResult');
+  if (!id || !id.startsWith('GRV-')) {
+    el.innerHTML = '<div class="muted" style="font-size: 12px; padding: 10px; background: var(--line-soft); border-radius: 8px;">Enter a valid GRV-ID (e.g. GRV-10847)</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div style="background: linear-gradient(135deg, #ecfdf5, #d1fae5); padding: 14px; border-radius: 10px; border-left: 4px solid #10b981;">
+      <div style="font-weight: 700; margin-bottom: 4px;">${id} · RESOLVED</div>
+      <div style="font-size: 12px; color: var(--muted);">Ward: Banjara Hills · Officer: Mr. Ravi Kumar · Resolved in 4h 22m</div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 6px;">Timeline: filed 14:32 → assigned 14:35 → on-ground 16:14 → resolved 18:54 · NPS: ⭐⭐⭐⭐⭐</div>
+    </div>`;
+};
+
+// Wire the language selector — mirrors api.lang() and reloads the page
+// so the i18n engine retranslates the static portal content.
+const _langSel = document.getElementById('langSel');
+if (_langSel && window.api) {
+  _langSel.value = window.api.lang();
+  _langSel.onchange = (e) => window.api.setLang(e.target.value);
+}
+</script>
+</body>
+</html>

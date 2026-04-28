@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#6366f1" />
+<title>Sign in &middot; Hearthly</title>
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/icon-180.png" />
+<link rel="stylesheet" href="/app.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined" />
+</head>
+<body>
+<div class="login-shell" id="shell"></div>
+
+<script src="/api.js"></script>
+<script src="/providers.js"></script>
+<script src="/wow.js"></script>
+<script>
+const shell = document.getElementById('shell');
+const ROUTE_BY_ROLE = { RESIDENT: '/resident.html', AGENT: '/agent.html', ADMIN: '/admin.html', OPERATOR: '/cmcc.html' };
+const params = new URLSearchParams(location.search);
+const NEXT_URL = params.get('next');     // explicit destination override
+const NEED_ROLE = params.get('role');    // hint for the user — "you need OPERATOR"
+
+let stage = 'phone';   // 'phone' | 'otp'
+let phone = '';
+let resendTimer = null;
+let resendIn = 0;
+
+// If already authed AND no override URL was requested, jump to the user's home.
+const u = api.user();
+if (!NEXT_URL && api.token() && u?.role && ROUTE_BY_ROLE[u.role]) location.replace(ROUTE_BY_ROLE[u.role]);
+else paint();
+
+function paint() {
+  shell.innerHTML = `
+    <div class="appbar">
+      <div class="brand"><div class="mark">support_agent</div><div class="name">Hearthly</div></div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" aria-label="theme">${(localStorage.getItem('vl_theme')||'light')==='dark' ? 'light_mode' : 'dark_mode'}</button>
+      <select id="lang" class="icon-btn" style="width:auto; padding:0 10px; font-family:inherit; font-size:12px; font-weight:600;">
+        <option value="EN" ${api.lang() === 'EN' ? 'selected' : ''}>EN</option>
+        <option value="HI" ${api.lang() === 'HI' ? 'selected' : ''}>हि</option>
+        <option value="TE" ${api.lang() === 'TE' ? 'selected' : ''}>తె</option>
+      </select>
+    </div>
+
+    <div class="login-hero">
+      <div class="mark-big">${NEED_ROLE === 'OPERATOR' ? 'monitoring' : 'support_agent'}</div>
+      <h1>${stage === 'phone' ? (NEED_ROLE === 'OPERATOR' ? 'Operator sign-in' : 'Welcome') : 'Verify your number'}</h1>
+      <div class="sub">${stage === 'phone'
+        ? (NEED_ROLE === 'OPERATOR'
+            ? 'CMCC requires an operator account. Pick the Operator chip below.'
+            : 'Sign in with your phone number to manage home services')
+        : `We sent a 6-digit code to <b>${phone}</b>`}</div>
+    </div>
+
+    <div class="login-form">
+      ${stage === 'phone' ? phoneStep() : otpStep()}
+      ${stage === 'phone' ? altMethods() : ''}
+      ${stage === 'phone' ? demoChips() : ''}
+    </div>
+
+    <div class="login-foot">
+      By continuing you agree to our <a>Terms</a> &amp; <a>Privacy policy</a> (DPDP Act 2023).<br/>
+      OTP delivered via MSG91 &middot; PCI-DSS · ap-south-1
+    </div>
+  `;
+
+  document.getElementById('lang').onchange = (e) => api.setLang(e.target.value);
+  document.getElementById('themeBtn').onclick = () => { wow.toggleTheme(); paint(); };
+
+  if (stage === 'phone') wirePhoneStep();
+  else wireOtpStep();
+}
+
+function phoneStep() {
+  return `
+    <div class="field">
+      <label>Mobile number</label>
+      <div class="phone-row">
+        <div class="cc"><span class="flag">🇮🇳</span> +91</div>
+        <input id="phone" type="tel" inputmode="numeric" maxlength="10" placeholder="9999900001" autocomplete="tel-national" />
+      </div>
+    </div>
+    <div class="field">
+      <button class="btn cta block" id="sendBtn">Send OTP</button>
+    </div>
+  `;
+}
+
+function altMethods() {
+  return `
+    <div class="auth-divider">or sign in with</div>
+    <div class="auth-alt">
+      <button class="faceid" id="faceBtn">
+        <span class="ico">face</span>
+        Sign in with FaceID
+      </button>
+      <button class="google" id="gBtn">
+        <span class="g"></span>
+        Continue with Google
+      </button>
+    </div>
+  `;
+}
+
+function demoChips() {
+  return `
+    <div style="margin-top: 22px;">
+      <div style="font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px;">Demo accounts</div>
+      <div class="demo-chips" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="demo-chip ${NEED_ROLE && NEED_ROLE !== 'RESIDENT' ? 'dim' : ''}" data-num="9999900001"><div class="role">Resident</div><div class="name">Aarav</div></div>
+        <div class="demo-chip ${NEED_ROLE && NEED_ROLE !== 'AGENT' ? 'dim' : ''}" data-num="9999900002"><div class="role">Agent</div><div class="name">Ravi</div></div>
+        <div class="demo-chip ${NEED_ROLE && NEED_ROLE !== 'ADMIN' ? 'dim' : ''}" data-num="9999900003"><div class="role">Admin</div><div class="name">Priya</div></div>
+        <div class="demo-chip ${NEED_ROLE === 'OPERATOR' ? 'recommended' : ''} ${NEED_ROLE && NEED_ROLE !== 'OPERATOR' ? 'dim' : ''}" data-num="9999900010"><div class="role">Operator</div><div class="name">Priya I</div></div>
+      </div>
+      <div style="text-align:center; font-size: 11px; color: var(--muted); margin-top: 10px;">All accounts use OTP <b>123456</b></div>
+    </div>
+  `;
+}
+
+function otpStep() {
+  return `
+    <div class="field">
+      <label>Enter 6-digit code</label>
+      <div class="otp-row" id="otpRow">
+        ${[0,1,2,3,4,5].map((i) => `<input type="tel" inputmode="numeric" maxlength="1" data-i="${i}" />`).join('')}
+      </div>
+      <div class="otp-meta">
+        <span>Auto-fill: <b>123456</b> (demo)</span>
+        <span class="resend disabled" id="resend">Resend in ${resendIn}s</span>
+      </div>
+    </div>
+    <div class="field">
+      <button class="btn cta block" id="verifyBtn" disabled>Verify &amp; continue</button>
+    </div>
+    <div class="field">
+      <button class="btn ghost block" id="changeNum">Change number</button>
+    </div>
+  `;
+}
+
+// ─── Phone step ──────────────────────────────────────────────────────
+function wirePhoneStep() {
+  const phoneInput = document.getElementById('phone');
+  const sendBtn = document.getElementById('sendBtn');
+  phoneInput.focus();
+
+  phoneInput.addEventListener('input', () => {
+    phoneInput.value = phoneInput.value.replace(/\D/g, '').slice(0, 10);
+  });
+  phoneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendBtn.click(); });
+
+  sendBtn.onclick = () => sendOtp('+91' + (phoneInput.value || '').trim());
+
+  document.querySelectorAll('.demo-chip').forEach((c) => c.onclick = () => {
+    phoneInput.value = c.dataset.num;
+    sendBtn.click();
+  });
+
+  document.getElementById('faceBtn').onclick = mockBiometric;
+  document.getElementById('gBtn').onclick = mockGoogle;
+}
+
+async function sendOtp(fullPhone) {
+  if (!/^\+91\d{10}$/.test(fullPhone)) return api.toast('Enter a valid 10-digit Indian number');
+  phone = fullPhone;
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true; btn.textContent = 'Sending OTP via MSG91…';
+  try {
+    // Real-shape: providers.sms wraps the same call MSG91 would receive in prod.
+    const sms = await providers.sms.sendOtp(phone, api.lang());
+    await api.http('POST', '/api/auth/otp/request', { phone });
+    providers.push.show('OTP sent', `via ${sms.provider} · template ${sms.template}`, { icon: 'sms', duration: 3000 });
+    stage = 'otp';
+    startResendCountdown(30);
+    paint();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Send OTP';
+    api.toast(e.message);
+  }
+}
+
+// ─── OTP step ────────────────────────────────────────────────────────
+function wireOtpStep() {
+  const inputs = [...document.querySelectorAll('#otpRow input')];
+  const verifyBtn = document.getElementById('verifyBtn');
+  const changeBtn = document.getElementById('changeNum');
+
+  // Auto-fill the demo OTP after a short delay (simulates auto-detect-from-SMS).
+  setTimeout(() => fillOtp('123456'), 600);
+
+  inputs.forEach((inp, i) => {
+    inp.addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 1);
+      if (e.target.value && i < 5) inputs[i + 1].focus();
+      checkComplete();
+    });
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !inp.value && i > 0) inputs[i - 1].focus();
+      if (e.key === 'Enter') verifyBtn.click();
+    });
+    inp.addEventListener('paste', (e) => {
+      const txt = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+      if (txt.length) { e.preventDefault(); fillOtp(txt); }
+    });
+  });
+
+  verifyBtn.onclick = () => verifyOtp(inputs.map((i) => i.value).join(''));
+  changeBtn.onclick = () => { stage = 'phone'; stopResend(); paint(); };
+
+  function fillOtp(code) {
+    code.split('').forEach((c, i) => { if (inputs[i]) inputs[i].value = c; });
+    inputs[Math.min(5, code.length - 1)]?.focus();
+    checkComplete();
+  }
+  function checkComplete() {
+    const code = inputs.map((i) => i.value).join('');
+    verifyBtn.disabled = code.length !== 6;
+    if (code.length === 6) verifyOtp(code);
+  }
+}
+
+function startResendCountdown(seconds) {
+  resendIn = seconds;
+  stopResend();
+  resendTimer = setInterval(() => {
+    resendIn--;
+    const r = document.getElementById('resend');
+    if (!r) { stopResend(); return; }
+    if (resendIn <= 0) {
+      r.textContent = 'Resend OTP';
+      r.classList.remove('disabled');
+      r.onclick = () => sendOtp(phone);
+      stopResend();
+    } else {
+      r.textContent = `Resend in ${resendIn}s`;
+    }
+  }, 1000);
+}
+function stopResend() { if (resendTimer) clearInterval(resendTimer); resendTimer = null; }
+
+async function verifyOtp(otp) {
+  if (otp.length !== 6) return;
+  const btn = document.getElementById('verifyBtn');
+  if (!btn) return;
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  try {
+    const r = await api.http('POST', '/api/auth/otp/verify', { phone, otp });
+    // If a specific role is required (e.g. OPERATOR for CMCC) and the user
+    // signed in with a different one, refuse + bounce back to login so they
+    // pick the right chip. Don't keep their session — that's exactly what
+    // caused the resident-page loop.
+    if (NEED_ROLE && r.user.role !== NEED_ROLE && r.user.role !== 'ADMIN') {
+      api.toast(`That account is a ${r.user.role.toLowerCase()}. ${NEED_ROLE} login required for ${NEXT_URL || 'this page'}.`);
+      stopResend();
+      btn.disabled = false; btn.textContent = 'Verify & continue';
+      // Clear inputs but keep query params so the operator hero text stays.
+      setTimeout(() => { stage = 'phone'; phone = ''; paint(); }, 1200);
+      return;
+    }
+    api.setToken(r.token); api.setUser(r.user);
+    providers.push.show('Signed in', `Welcome${r.user.name ? ', ' + r.user.name.split(' ')[0] : ''}`, { icon: 'check_circle' });
+    stopResend();
+    const dest = NEXT_URL && (!NEED_ROLE || r.user.role === NEED_ROLE || r.user.role === 'ADMIN')
+      ? NEXT_URL
+      : (ROUTE_BY_ROLE[r.user.role] || '/resident.html');
+    setTimeout(() => location.replace(dest), 400);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Verify & continue';
+    api.toast(e.message);
+    document.querySelectorAll('#otpRow input').forEach((i) => i.value = '');
+    document.querySelector('#otpRow input')?.focus();
+  }
+}
+
+// ─── Biometric (mock) ────────────────────────────────────────────────
+async function mockBiometric() {
+  const last = api.user();
+  const target = last?.phone || '+919999900001';
+  const overlay = document.createElement('div');
+  overlay.className = 'bio-overlay';
+  overlay.innerHTML = `<div><div class="face">face</div><div class="label" style="text-align:center; margin-top:24px;">Look at your phone…</div></div>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('show'));
+  await new Promise((r) => setTimeout(r, 1400));
+  overlay.querySelector('.label').textContent = 'Recognised ✓';
+  await new Promise((r) => setTimeout(r, 600));
+  overlay.remove();
+  // Auto-OTP path: request, auto-verify (this is a mock — real flow would use WebAuthn / Android Biometric).
+  try {
+    await api.http('POST', '/api/auth/otp/request', { phone: target });
+    const r = await api.http('POST', '/api/auth/otp/verify', { phone: target, otp: '123456' });
+    api.setToken(r.token); api.setUser(r.user);
+    location.replace(ROUTE_BY_ROLE[r.user.role] || '/resident.html');
+  } catch (e) { api.toast(e.message); }
+}
+
+// ─── Google (mock) ───────────────────────────────────────────────────
+async function mockGoogle() {
+  api.toast('Mock Google sign-in → demo resident');
+  try {
+    const target = '+919999900001';
+    await api.http('POST', '/api/auth/otp/request', { phone: target });
+    const r = await api.http('POST', '/api/auth/otp/verify', { phone: target, otp: '123456' });
+    api.setToken(r.token); api.setUser(r.user);
+    location.replace(ROUTE_BY_ROLE[r.user.role] || '/resident.html');
+  } catch (e) { api.toast(e.message); }
+}
+</script>
+</body>
+</html>

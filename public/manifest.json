@@ -1,0 +1,24 @@
+{
+  "name": "Hearthly",
+  "short_name": "Valet",
+  "description": "IoT-driven valet services for Indian gated communities",
+  "start_url": "./login.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#6366f1",
+  "lang": "en-IN",
+  "dir": "ltr",
+  "categories": ["lifestyle", "utilities"],
+  "icons": [
+    { "src": "/icon.svg",     "sizes": "any",     "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Book a service", "short_name": "Book", "url": "/resident.html",        "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Agent dashboard", "short_name": "Agent", "url": "/agent.html",         "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Admin console",  "short_name": "Admin", "url": "/admin.html",          "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

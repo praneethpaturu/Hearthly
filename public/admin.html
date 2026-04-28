@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Hearthly — Admin</title>
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/app.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined" />
+<style>
+  body { background: #f1f5f9; }
+  .admin-shell { min-height: 100dvh; display: flex; flex-direction: column; }
+  .nav {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: #fff; border-bottom: 1px solid var(--line);
+    padding: 14px 24px; position: sticky; top: 0; z-index: 5;
+  }
+  .nav > .spacer { flex: 1; min-width: 0; }
+  .nav button, .nav a, .nav select { flex-shrink: 0; }
+  /* Profile menu */
+  .profile-wrap { position: relative; }
+  .avatar-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+    color: #fff; border: 0; cursor: pointer;
+    font-weight: 700; font-size: 12px; display: grid; place-items: center;
+    box-shadow: 0 4px 12px rgba(99,102,241,.25);
+  }
+  .profile-menu {
+    position: absolute; top: calc(100% + 8px); right: 0;
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    min-width: 220px; box-shadow: var(--shadow-lg);
+    padding: 8px; z-index: 10;
+    opacity: 0; transform: translateY(-6px); pointer-events: none;
+    transition: opacity .15s, transform .15s;
+  }
+  .profile-menu.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .profile-menu .head {
+    padding: 12px 12px 10px; border-bottom: 1px solid var(--line-soft);
+    margin-bottom: 6px;
+  }
+  .profile-menu .head .nm { font-weight: 700; font-size: 13px; color: var(--ink); }
+  .profile-menu .head .ph { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .profile-menu a, .profile-menu button {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 9px 12px; border-radius: 8px;
+    background: transparent; border: 0; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--ink-2);
+    text-align: left; font-family: inherit; text-decoration: none;
+    transition: background .12s;
+  }
+  .profile-menu a:hover, .profile-menu button:hover { background: var(--line-soft); color: var(--ink); }
+  .profile-menu .danger { color: var(--danger); }
+  .profile-menu .danger:hover { background: #fef2f2; }
+  .profile-menu .ico { font-family: 'Material Symbols Outlined'; font-size: 18px; color: var(--muted); }
+  .profile-menu .danger .ico { color: var(--danger); }
+  .nav .mark { width: 36px; height: 36px; border-radius: 12px;
+    background: linear-gradient(135deg, #0f172a 0%, #334155 100%); color: #fff;
+    display: grid; place-items: center; font-family: "Material Symbols Outlined"; font-size: 22px; }
+  .nav .name { font-weight: 700; }
+  .nav .role-pill { font-size: 11px; padding: 4px 10px; border-radius: 999px;
+    background: #e0e7ff; color: #4338ca; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .container { padding: 22px; max-width: 1320px; margin: 0 auto; width: 100%; }
+  @media (max-width: 720px) { .container { padding: 14px; } .nav { padding: 12px 14px; } }
+</style>
+</head>
+<body>
+<div class="admin-shell" id="shell"></div>
+
+<script src="/api.js"></script>
+<script src="/providers.js"></script>
+<script src="/ui.js"></script>
+<script src="/wow.js"></script>
+<script>
+const shell = document.getElementById('shell');
+let me, devices = [], orders = [], stats = {}, agentLocations = new Map(), socket;
+
+if (!api.token() || !api.user()) location.replace('/login.html');
+else if (api.user().role !== 'ADMIN') location.replace('/login.html');
+else load();
+
+function renderAuth() {
+  shell.innerHTML = `
+    <div class="nav">
+      <div class="mark">monitoring</div>
+      <div class="name">Hearthly &middot; Admin</div>
+      <div style="flex:1;"></div>
+      <a href="/" style="color: var(--muted); font-size: 13px;">← Back</a>
+    </div>
+    <div class="auth">
+      <div class="logo-big" style="background: linear-gradient(135deg, #0f172a, #334155);">monitoring</div>
+      <h1>Admin sign-in</h1>
+      <div class="sub">For property managers and operations staff.</div>
+      <div class="field">
+        <label>Phone</label>
+        <input id="phone" value="+919999900003" />
+      </div>
+      <div class="field" id="otpField" style="display:none;">
+        <label>OTP</label><input id="otp" inputmode="numeric" maxlength="6" />
+      </div>
+      <div class="field"><button class="btn cta block" id="submit" style="background: #0f172a;">Send OTP</button></div>
+      <div class="demo-acc">Demo: <code>+919999900003</code> &middot; OTP <code>123456</code></div>
+    </div>`;
+  let stage = 'phone';
+  document.getElementById('submit').onclick = async () => {
+    try {
+      if (stage === 'phone') {
+        const r = await api.http('POST', '/api/auth/otp/request', { phone: document.getElementById('phone').value });
+        document.getElementById('otpField').style.display = '';
+        document.getElementById('otp').value = r.demoOtp;
+        document.getElementById('submit').textContent = 'Verify';
+        stage = 'otp';
+      } else {
+        const r = await api.http('POST', '/api/auth/otp/verify', {
+          phone: document.getElementById('phone').value,
+          otp: document.getElementById('otp').value,
+        });
+        api.setToken(r.token); api.setUser(r.user); location.reload();
+      }
+    } catch (e) { api.toast(e.message); }
+  };
+}
+
+async function load() {
+  me = await api.http('GET', '/api/me');
+  await refresh();
+  paint();
+  setTimeout(() => wow.tour([
+    { emoji: '🏢', title: 'Community admin', body: 'Manage everything in your community: bins, agents, residents, complaints, OTA, AI insights.' },
+    { emoji: '📡', title: 'Live IoT', body: 'Tap any bin to simulate fill level via MQTT — orders auto-create at 80% threshold.' },
+    { emoji: '🎯', title: 'AI assistant', body: 'Ask plain-English questions: "which bins fill fastest?", "complaints by category".' },
+    { emoji: '↗', title: 'Open CMCC', body: 'For network-wide ops, tap CMCC ↗ in the top bar — opens the centralised monitoring console.' },
+  ], 'admin_v1'), 600);
+  socket = api.connectSocket();
+  socket?.on('device:update', (d) => { const i = devices.findIndex((x) => x.id === d.id); if (i>=0) devices[i] = d; else devices.push(d); paintBins(); paintKpis(); });
+  socket?.on('order:new',     (o) => { orders.unshift(o); paintOrders(); paintKpis(); paintRfid(); });
+  socket?.on('order:status',  (o) => { const i = orders.findIndex((x) => x.id === o.id); if (i>=0) orders[i] = o; else orders.unshift(o); paintOrders(); paintKpis(); paintRfid(); });
+  socket?.on('agent:location',(loc) => { agentLocations.set(loc.agentId || 'agent', { ...loc, at: Date.now() }); paintLocations(); });
+}
+
+async function refresh() {
+  [stats, devices, orders] = await Promise.all([
+    api.http('GET', '/api/admin/stats'),
+    api.http('GET', '/api/admin/devices'),
+    api.http('GET', '/api/admin/orders'),
+  ]);
+}
+
+function paint() {
+  shell.innerHTML = `
+    <div class="nav">
+      <div class="mark">monitoring</div>
+      <div><div class="name">Hearthly</div><div style="font-size:11px; color: var(--muted);">Admin console</div></div>
+      <select id="commSel" style="width:auto; padding: 6px 10px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); border-radius: 8px;">
+        <option value="c1">Prestige Sunrise Park (BLR)</option>
+        <option value="c2">Brigade Cosmopolis (BLR)</option>
+        <option value="c3">My Home Bhooja (HYD)</option>
+      </select>
+      <span class="role-pill">Live</span>
+      <div style="flex:1;"></div>
+      <select id="lang" class="icon-btn" style="width:auto; padding:0 10px; font-family:inherit; font-size:12px; font-weight:600;">
+        <option value="EN" ${api.lang() === 'EN' ? 'selected' : ''}>EN</option>
+        <option value="HI" ${api.lang() === 'HI' ? 'selected' : ''}>हि</option>
+        <option value="TE" ${api.lang() === 'TE' ? 'selected' : ''}>తె</option>
+      </select>
+      ${ui.bell()}
+      <button class="btn ghost sm" id="cmpQueue">Complaints</button>
+      <button class="btn ghost sm" id="lbBtn">Leaderboard</button>
+      <a class="btn ghost sm" href="http://localhost:4040" target="_blank" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;">CMCC ↗</a>
+      <div class="profile-wrap">
+        <button class="avatar-btn" id="profileBtn" title="${me.name}" aria-label="Open profile menu">${(me.name || me.phone || '?').split(' ').map(s => s[0]).slice(0,2).join('')}</button>
+        <div class="profile-menu" id="profileMenu">
+          <div class="head">
+            <div class="nm">${me.name}</div>
+            <div class="ph">${me.phone} · Admin</div>
+          </div>
+          <button id="pmTheme"><span class="ico">${(localStorage.getItem('vl_theme')||'light')==='dark' ? 'light_mode' : 'dark_mode'}</span> Toggle theme</button>
+          <a href="http://localhost:4040" target="_blank"><span class="ico">open_in_new</span> Open CMCC</a>
+          <button id="pmAiKey"><span class="ico">key</span> OpenAI key</button>
+          <button class="danger" id="pmLogout"><span class="ico">logout</span> Sign out</button>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <div class="card" style="margin-bottom: 18px; background: linear-gradient(135deg, #f8fafc, #eef2ff); border-color: #c7d2fe;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:40px; height:40px; border-radius:12px; background: linear-gradient(135deg, var(--brand), var(--brand-2)); color:#fff; display:grid; place-items:center; font-family:'Material Symbols Outlined'; font-size:22px;">auto_awesome</div>
+          <div style="flex:1;">
+            <div style="font-weight:700; font-size:13px;">Daily ops digest</div>
+            <div style="font-size: 13px; color: var(--ink-2);" id="digestBox">Loading…</div>
+          </div>
+        </div>
+      </div>
+      <div class="kpis" id="kpis"></div>
+
+      <div class="split">
+        <div class="card">
+          <h2>Smart bins <span class="live" style="margin-left: 6px;">live</span></h2>
+          <div class="muted" style="font-size: 12px; margin-bottom: 10px;">Click any bin to set its fill level. Crossing 80% auto-creates a pickup order. Edge AI classifies bin contents for ESG reporting.</div>
+          <div id="bins" class="bin-grid"></div>
+        </div>
+        <div class="card">
+          <h2>System health</h2>
+          <div class="muted" style="font-size: 12px; margin-bottom: 10px;">All services live. Backed by AWS ap-south-1 (Mumbai).</div>
+          <div class="health-grid">
+            <div class="health-tile"><div class="lbl">API TLS</div><div class="val ok">TLS 1.3</div></div>
+            <div class="health-tile"><div class="lbl">MQTT</div><div class="val ok">mTLS · per-device cert</div></div>
+            <div class="health-tile"><div class="lbl">DB</div><div class="val ok">Postgres + 2 replicas</div></div>
+            <div class="health-tile"><div class="lbl">Redis</div><div class="val ok">Cluster · 3 nodes</div></div>
+            <div class="health-tile"><div class="lbl">Queue lag</div><div class="val ok">12 ms</div></div>
+            <div class="health-tile"><div class="lbl">Audit log</div><div class="val">tamper-evident</div></div>
+            <div class="health-tile"><div class="lbl">DPDP consent</div><div class="val ok">98% residents</div></div>
+            <div class="health-tile"><div class="lbl">CERT-In hook</div><div class="val ok">armed</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 18px;"></div>
+
+      <div class="split">
+        <div class="card">
+          <h2>Anomalies <span class="live" style="margin-left: 6px;">live</span></h2>
+          <div class="muted" style="font-size: 12px; margin-bottom: 10px;">ML alerts on bin telemetry &amp; agent behaviour.</div>
+          <div id="anomalies"></div>
+        </div>
+        <div class="card">
+          <h2>Predictive maintenance</h2>
+          <div class="muted" style="font-size: 12px; margin-bottom: 10px;">Battery health &amp; failure forecast per device.</div>
+          <div id="pmBox"></div>
+        </div>
+      </div>
+
+      <div style="height: 18px;"></div>
+
+      <div class="split">
+        <div class="card">
+          <h2>RFID scanner</h2>
+          <div class="muted" style="font-size: 12px; margin-bottom: 10px;">Simulate a tag swipe at the gate scanner.</div>
+          <div id="rfidBox"></div>
+        </div>
+        <div class="card">
+          <h2>Firmware OTA</h2>
+          <div class="muted" style="font-size: 12px; margin-bottom: 10px;">Per-device firmware versions. OTA updates signed with Ed25519.</div>
+          <div id="otaBox"></div>
+        </div>
+      </div>
+
+      <div style="height: 18px;"></div>
+
+      <div class="card">
+        <h2>AI assistant <span class="role-pill" style="margin-left: 4px;">${providers.openai.hasKey() ? 'OpenAI' : 'mock'}</span></h2>
+        <div class="muted" style="font-size: 12px; margin-bottom: 10px;">Ask anything about your community in plain English. e.g. "which bins filled fastest today?", "complaints by category", "agents with low ratings".</div>
+        <div id="chatLog" style="max-height: 320px; overflow-y: auto; margin-bottom: 10px;"></div>
+        <div style="display:flex; gap:8px;">
+          <input id="chatInput" placeholder="Ask about orders, devices, complaints…" />
+          <button class="btn cta sm" id="chatSend">Ask</button>
+          <button class="btn ghost sm" id="chatKey">Key</button>
+        </div>
+      </div>
+
+      <div style="height: 18px;"></div>
+
+      <div class="split">
+        <div class="card">
+          <h2>Live agent positions</h2>
+          <div id="locBox" class="muted" style="font-size: 13px;">No active agent telemetry yet — start a task in the Agent window.</div>
+        </div>
+        <div class="card">
+          <h2>Community</h2>
+          <div style="font-size: 14px;">
+            <div style="font-weight:700;">Prestige Sunrise Park</div>
+            <div class="muted" style="font-size: 12px;">Bangalore &middot; 560103</div>
+            <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div class="kpi" style="padding: 10px;"><div class="lbl">Flats</div><div class="val" style="font-size: 20px;">8</div></div>
+              <div class="kpi" style="padding: 10px;"><div class="lbl">Devices</div><div class="val" style="font-size: 20px;">${devices.length}</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height: 18px;"></div>
+
+      <div class="card">
+        <h2>All orders <span class="live" style="margin-left: 6px;">live</span></h2>
+        <div id="ordersBox" style="overflow-x: auto;"></div>
+      </div>
+    </div>`;
+  paintKpis(); paintBins(); paintRfid(); paintOrders(); paintLocations();
+  paintAnomalies(); paintPm(); paintOta(); wireChat();
+  ui.wireBell();
+  document.getElementById('lang').onchange = (e) => api.setLang(e.target.value);
+  document.getElementById('cmpQueue').onclick = () => ui.complaintQueue(orders);
+  document.getElementById('lbBtn').onclick    = () => wow.leaderboard();
+  // Profile dropdown
+  const profileBtn = document.getElementById('profileBtn');
+  const profileMenu = document.getElementById('profileMenu');
+  if (profileBtn && profileMenu) {
+    const close = () => profileMenu.classList.remove('open');
+    profileBtn.onclick = (e) => {
+      e.stopPropagation();
+      profileMenu.classList.toggle('open');
+    };
+    document.addEventListener('click', (e) => {
+      if (!profileMenu.contains(e.target) && e.target !== profileBtn) close();
+    });
+    document.getElementById('pmTheme').onclick = () => { close(); wow.toggleTheme(); paint(); };
+    document.getElementById('pmLogout').onclick = () => { close(); api.logout(); };
+    document.getElementById('pmAiKey').onclick = async () => {
+      close();
+      const cur = providers.openai.getKey();
+      const k = await ui.prompt({ title: 'OpenAI API key', subtitle: 'Stored only on this device', label: 'sk-...', value: cur, cta: 'Save' });
+      if (k !== null) providers.openai.setKey(k);
+      api.toast(k ? 'Key saved' : 'Key cleared');
+    };
+  }
+  // Daily ops digest
+  wow.opsDigest({ orders: orders.slice(0, 30), devices }).then((d) => {
+    const el = document.getElementById('digestBox'); if (el) el.textContent = d;
+  });
+  document.getElementById('commSel').onchange = (e) => {
+    const labels = { c1: 'Prestige Sunrise Park', c2: 'Brigade Cosmopolis', c3: 'My Home Bhooja' };
+    api.toast(`Now viewing ${labels[e.target.value]}`);
+    providers.push.show('Community switched', labels[e.target.value], { icon: 'apartment' });
+  };
+}
+
+function paintAnomalies() {
+  const orders = api._state().orders;
+  const items = [];
+  Object.values(api._state().devices).forEach((d) => {
+    if (d.type !== 'SMART_BIN') return;
+    const a = providers.ai.detectAnomaly(d.id, d.fillLevel - 35, d.fillLevel, 60);
+    if (a) items.push({ kind: 'BIN', id: d.id, label: d.label, ...a });
+  });
+  // Add a synthetic ghost-completion alert if there's at least one completed order quickly
+  const fastDone = orders.find((o) => o.status === 'COMPLETED' && o.enRouteAt && o.completedAt &&
+    (new Date(o.completedAt) - new Date(o.enRouteAt)) < 60_000);
+  if (fastDone) items.push({ kind: 'AGENT', id: fastDone.id, label: 'Possible ghost completion', type: 'GHOST_COMPLETION', confidence: 0.86, suggested_action: 'Audit photo proof + RFID log', model: 'agent-anomaly-v1' });
+  const box = document.getElementById('anomalies');
+  if (!items.length) { box.innerHTML = '<div class="muted" style="font-size:13px;">No anomalies in the last hour.</div>'; return; }
+  box.innerHTML = items.slice(0, 6).map((a) => `
+    <div class="anomaly" style="margin-bottom:8px;">
+      <div class="ico">${a.kind === 'AGENT' ? 'person_alert' : 'priority_high'}</div>
+      <div class="meta">
+        <div><b>${a.label}</b> · ${a.type.replace('_',' ')}</div>
+        <div class="sub">${a.suggested_action} · ${(a.confidence*100|0)}% confidence · ${a.model}</div>
+      </div>
+    </div>`).join('');
+}
+
+function paintPm() {
+  const box = document.getElementById('pmBox');
+  const items = Object.values(api._state().devices).filter((d) => d.type === 'SMART_BIN').map(providers.ai.predictMaintenance);
+  box.innerHTML = `<table class="table"><thead><tr><th>Device</th><th>Battery</th><th>Sensor drift</th><th>Failure ETA</th></tr></thead><tbody>
+    ${items.map((p) => `<tr>
+      <td><b>${p.device_id}</b><div class="muted" style="font-size:11px;">${p.model}</div></td>
+      <td><span class="${p.battery_health_pct < 60 ? 'badge cancelled' : p.battery_health_pct < 80 ? 'badge en_route' : 'badge completed'}">${p.battery_health_pct}%</span></td>
+      <td>${(p.sensor_drift_pct*100).toFixed(1)}%</td>
+      <td>${p.predicted_failure_in_days} days</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function paintOta() {
+  const box = document.getElementById('otaBox');
+  const devs = Object.values(api._state().devices);
+  box.innerHTML = `<table class="table"><thead><tr><th>Device</th><th>Type</th><th>Firmware</th><th></th></tr></thead><tbody>
+    ${devs.map((d) => {
+      const fv = (parseInt(d.id.replace(/\D/g, '')) || 0) % 10 === 0 ? '1.4.2' : '1.5.0';
+      const stale = fv === '1.4.2';
+      return `<tr>
+        <td><b>${d.label || d.id}</b></td>
+        <td>${d.type}</td>
+        <td>${fv} ${stale ? '<span class="badge en_route">update available</span>' : '<span class="badge completed">current</span>'}</td>
+        <td><button class="btn ghost sm" data-ota="${d.id}">Schedule OTA</button></td>
+      </tr>`;
+    }).join('')}
+  </tbody></table>`;
+  box.querySelectorAll('[data-ota]').forEach((b) => b.onclick = () => {
+    const d = devs.find((x) => x.id === b.dataset.ota);
+    ui.scheduleOta(d);
+  });
+}
+
+function wireChat() {
+  const log = document.getElementById('chatLog');
+  const input = document.getElementById('chatInput');
+  const send = document.getElementById('chatSend');
+  const key = document.getElementById('chatKey');
+  key.onclick = async () => {
+    const cur = providers.openai.getKey();
+    const k = await ui.prompt({ title: 'OpenAI API key', subtitle: 'Stored only on this device · sent only to api.openai.com', label: 'sk-...', value: cur, cta: 'Save' });
+    if (k !== null) providers.openai.setKey(k);
+    api.toast(k ? 'Key saved' : 'Key cleared');
+    paint();
+  };
+  const ask = async () => {
+    const q = input.value.trim(); if (!q) return;
+    input.value = '';
+    const userMsg = document.createElement('div'); userMsg.className = 'chat-msg user'; userMsg.textContent = q; log.appendChild(userMsg);
+    const bot = document.createElement('div'); bot.className = 'chat-msg bot'; bot.textContent = 'Thinking…'; log.appendChild(bot);
+    log.scrollTop = log.scrollHeight;
+    try {
+      const snapshot = {
+        orders: api._state().orders.slice(0, 30).map((o) => ({ id: o.id, service: o.serviceId, status: o.status, agent: o.agentId, flat: o.flatId, createdAt: o.createdAt, completedAt: o.completedAt, source: o.source })),
+        devices: Object.values(api._state().devices).map((d) => ({ id: d.id, type: d.type, fillLevel: d.fillLevel })),
+        users: Object.values(api._state().users).map((u) => ({ id: u.id, role: u.role, flat: u.flatId })),
+        services: api._state().services.map((s) => ({ id: s.id, name: s.name })),
+      };
+      let answer;
+      if (providers.openai.hasKey()) answer = await providers.openai.answerAdmin(q, snapshot);
+      else answer = mockAnalystAnswer(q, snapshot);
+      bot.textContent = answer;
+    } catch (e) {
+      bot.classList.add('error'); bot.textContent = e.message;
+    }
+    log.scrollTop = log.scrollHeight;
+  };
+  send.onclick = ask;
+  input.onkeydown = (e) => { if (e.key === 'Enter') ask(); };
+}
+
+function mockAnalystAnswer(q, snap) {
+  const lower = q.toLowerCase();
+  if (lower.includes('bin') || lower.includes('full')) {
+    const top = snap.devices.filter((d) => d.type === 'SMART_BIN').sort((a, b) => b.fillLevel - a.fillLevel).slice(0, 3);
+    return 'Top bins by current fill:\n' + top.map((b) => `• ${b.id}: ${b.fillLevel}%`).join('\n');
+  }
+  if (lower.includes('order') || lower.includes('service')) {
+    const total = snap.orders.length;
+    const active = snap.orders.filter((o) => !['COMPLETED','CANCELLED'].includes(o.status)).length;
+    return `${total} orders total, ${active} active. Set an OpenAI key for richer answers.`;
+  }
+  return 'Mock analyst: paste an OpenAI key (Key button) to enable real answers.';
+}
+
+function paintKpis() {
+  // Recompute locally for snappier UI
+  stats.totalOrders = orders.length;
+  stats.active = orders.filter((o) => !['COMPLETED','CANCELLED'].includes(o.status)).length;
+  stats.completedToday = orders.filter((o) => o.completedAt?.slice(0,10) === new Date().toISOString().slice(0,10)).length;
+  stats.fullBins = devices.filter((d) => d.type === 'SMART_BIN' && d.fillLevel >= 80).length;
+  stats.devicesOnline = devices.filter((d) => d.online).length;
+  // Cheap deterministic-ish sparkline series
+  const sparkSeries = (n, base) => Array(n).fill(0).map((_, i) => base + Math.sin(i / 1.5) * (base/3) + Math.random() * (base/4));
+  const cards = [
+    { lbl: 'Total orders',    val: stats.totalOrders, cls: '', spark: sparkSeries(12, 8), delta: '+12% w/w' },
+    { lbl: 'Active',          val: stats.active,      cls: '', spark: sparkSeries(12, 4) },
+    { lbl: 'Completed today', val: stats.completedToday, cls: '', spark: sparkSeries(12, 6), delta: '+2 vs yesterday' },
+    { lbl: 'Devices online',  val: `${stats.devicesOnline}/${devices.length}`, cls: '', spark: sparkSeries(12, devices.length) },
+    { lbl: 'Full bins ≥80%',  val: stats.fullBins,    cls: stats.fullBins ? 'danger' : '', spark: sparkSeries(12, 2) },
+  ];
+  document.getElementById('kpis').innerHTML = cards.map((c) =>
+    `<div class="kpi ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div>${c.delta ? `<div class="delta">${c.delta}</div>` : ''}${wow.spark(c.spark)}</div>`
+  ).join('');
+}
+
+function paintBins() {
+  const bins = devices.filter((d) => d.type === 'SMART_BIN');
+  document.getElementById('bins').innerHTML = bins.map((b) => {
+    const cls = b.fillLevel >= 80 ? 'full' : b.fillLevel >= 60 ? 'warn' : '';
+    const ec = providers.ai.classifyBinContents(b.id);
+    return `
+      <div class="bin ${cls}" data-bin="${b.id}">
+        <div class="row"><span class="name">${b.label}</span><span class="lvl">${b.fillLevel}%</span></div>
+        <div class="bar"><div style="width:${b.fillLevel}%"></div></div>
+        <div class="seen">${new Date(b.lastSeen).toLocaleTimeString()}</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:6px;">edge-AI · ${ec.organic_pct}% organic · ${ec.recyclable_pct}% recyclable</div>
+      </div>`;
+  }).join('');
+  bins.forEach((b) => {
+    document.querySelector(`[data-bin="${b.id}"]`).onclick = async () => {
+      const v = await ui.prompt({ title: `Simulate fill level`, subtitle: b.label, label: 'Fill level (0-100)', value: '85', cta: 'Publish MQTT', inputmode: 'numeric' });
+      if (v === null || v === '') return;
+      const lvl = Number(v);
+      if (Number.isNaN(lvl)) return;
+      await api.http('POST', `/api/admin/iot/bin/${b.id}/level`, { level: lvl });
+      api.toast(`${b.label} → ${lvl}%`);
+    };
+  });
+}
+
+function paintRfid() {
+  const candidates = orders.filter((o) => ['EN_ROUTE','ARRIVED'].includes(o.status));
+  const box = document.getElementById('rfidBox');
+  if (!candidates.length) { box.innerHTML = '<div class="muted" style="font-size: 13px;">No active EN_ROUTE / ARRIVED tasks. Start one from the Agent window.</div>'; return; }
+  box.innerHTML = `
+    <div class="field"><label>Order</label>
+      <select id="rfidOrder">${candidates.map((o) => `<option value="${o.id}">${o.service?.name} → ${o.flat?.label || '—'} (${o.status})</option>`).join('')}</select>
+    </div>
+    <div class="field"><label>RFID tag</label><input id="rfidTag" placeholder="RFID-A101" /></div>
+    <div class="field"><button class="btn cta block" id="rfidSend" style="background: #0f172a;">Publish scan via MQTT</button></div>`;
+  const sel = document.getElementById('rfidOrder');
+  const setTag = () => { const o = candidates.find((o) => o.id === sel.value); document.getElementById('rfidTag').value = o?.flat?.rfidTag || ''; };
+  sel.onchange = setTag; setTag();
+  document.getElementById('rfidSend').onclick = async () => {
+    await api.http('POST', '/api/admin/iot/scan', { tag: document.getElementById('rfidTag').value, orderId: sel.value });
+    api.toast('Scan published');
+  };
+}
+
+function paintOrders() {
+  const box = document.getElementById('ordersBox');
+  if (!orders.length) { box.innerHTML = '<div class="muted">No orders yet.</div>'; return; }
+  // Wire row clicks after render via event delegation
+  setTimeout(() => {
+    box.querySelectorAll('tbody tr').forEach((row, i) => {
+      row.style.cursor = 'pointer';
+      row.onclick = () => ui.orderDetail(orders[i]);
+    });
+  }, 0);
+  box.innerHTML = `
+    <table class="table">
+      <thead><tr>
+        <th>Service</th><th>Where</th><th>Resident</th><th>Agent</th><th>Status</th><th>Created</th>
+      </tr></thead>
+      <tbody>
+        ${orders.slice(0, 30).map((o) => {
+          const where = o.flat?.label ? `Flat ${o.flat.label}` : (o.deviceId ? `Bin ${o.deviceId}` : '—');
+          const auto = o.source === 'AUTO_BIN' ? '<span class="badge auto" style="margin-left:4px;">AUTO</span>' : '';
+          const proof = o.proofKey ? '<span class="proof-pill" style="margin-left:4px;">proof</span>' : '';
+          const complaint = o.complaintId ? '<span class="badge cancelled" style="margin-left:4px;">complaint</span>' : '';
+          return `<tr>
+            <td><b>${o.service?.name}</b> ${auto}${proof}${complaint}</td>
+            <td>${where}</td>
+            <td>${o.resident?.name || '—'}</td>
+            <td>${o.agent?.name || '—'}</td>
+            <td><span class="badge ${o.status.toLowerCase()}">${o.status.replace('_',' ')}</span></td>
+            <td style="color: var(--muted);">${api.fmtTime(o.createdAt)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+function paintLocations() {
+  const box = document.getElementById('locBox');
+  const bins = devices.filter((d) => d.type === 'SMART_BIN');
+  const activeAgents = [...agentLocations.entries()];
+  const activeOrders = orders.filter((o) => ['EN_ROUTE','ARRIVED','IN_PROGRESS'].includes(o.status));
+
+  // Stylised community grid + markers
+  const mapHtml = `
+    <div class="citymap" style="height: 220px; position: relative;">
+      ${wow.heatmapPoints(orders)}
+      <span class="live-tag">LIVE</span>
+      <span class="compass">N</span>
+      <svg viewBox="0 0 320 220" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <pattern id="adgrid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M20 0 L0 0 0 20" fill="none" stroke="#e7decf" stroke-width="0.6"/>
+          </pattern>
+        </defs>
+        <rect width="320" height="220" fill="url(#adgrid)"/>
+        <rect x="0" y="100" width="320" height="14" fill="#fef3c7"/>
+        <rect x="150" y="0"  width="14"  height="220" fill="#fef3c7"/>
+        <!-- Block A -->
+        <rect x="20"  y="20"  width="100" height="60" rx="4" fill="#cbd5e1" opacity=".5"/>
+        <text x="70"  y="55"  text-anchor="middle" fill="#1e293b" font-size="11" font-weight="700">Block A</text>
+        <!-- Block B -->
+        <rect x="200" y="20"  width="100" height="60" rx="4" fill="#cbd5e1" opacity=".5"/>
+        <text x="250" y="55"  text-anchor="middle" fill="#1e293b" font-size="11" font-weight="700">Block B</text>
+        <!-- Common area -->
+        <rect x="80"  y="140" width="160" height="60" rx="4" fill="#a7f3d0" opacity=".5"/>
+        <text x="160" y="175" text-anchor="middle" fill="#065f46" font-size="11" font-weight="700">Common</text>
+        <!-- Bins -->
+        ${bins.map((b, i) => {
+          const xy = [[40, 180], [280, 180], [160, 110]][i] || [40 + i * 30, 200];
+          const color = b.fillLevel >= 80 ? '#ef4444' : b.fillLevel >= 60 ? '#f59e0b' : '#10b981';
+          return `<g transform="translate(${xy[0]}, ${xy[1]})"><circle r="10" fill="${color}"/><text x="0" y="3" text-anchor="middle" fill="#fff" font-family="Material Symbols Outlined" font-size="11">delete</text></g>`;
+        }).join('')}
+        <!-- Agents -->
+        ${activeAgents.length ? activeAgents.map(([id, l]) => {
+          // Map lat/lng range to xy
+          const x = 30 + ((l.lat - 12.910) / 0.002) * 250;
+          const y = 200 - ((l.lng - 77.600) / 0.0035) * 160;
+          return `<g transform="translate(${Math.max(20, Math.min(300, x))}, ${Math.max(20, Math.min(200, y))})">
+            <circle r="14" fill="#6366f1"><animate attributeName="r" values="14;17;14" dur="1.4s" repeatCount="indefinite"/></circle>
+            <circle r="10" fill="#fff"/>
+            <text x="0" y="4" text-anchor="middle" fill="#6366f1" font-family="Material Symbols Outlined" font-size="13">delivery_dining</text>
+          </g>`;
+        }).join('') : `<g transform="translate(30, 195)"><circle r="6" fill="#cbd5e1"/></g>`}
+      </svg>
+    </div>
+    <div style="margin-top: 10px; font-size: 12px;">
+      ${activeAgents.length
+        ? activeAgents.map(([id, l]) => `<div style="display:flex; justify-content:space-between; padding: 4px 0;"><span><b>${id}</b> · GPS ${l.lat.toFixed(4)}, ${l.lng.toFixed(4)}</span><span class="muted">ETA ${l.etaMin ?? '—'}m · ${new Date(l.at).toLocaleTimeString()}</span></div>`).join('')
+        : '<div class="muted">No agent telemetry — start a task in the Agent app.</div>'}
+      ${activeOrders.length ? `<div style="margin-top:6px; color: var(--muted);">${activeOrders.length} active order(s) being executed.</div>` : ''}
+    </div>
+  `;
+  box.classList.remove('muted');
+  box.innerHTML = mapHtml;
+}
+</script>
+</body>
+</html>

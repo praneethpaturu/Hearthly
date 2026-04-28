@@ -1,0 +1,22 @@
+{
+  "name": "hearthly-demo",
+  "version": "1.0.0",
+  "description": "Demoable Hearthly IoT App for India",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "aedes": "^0.51.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mqtt": "^5.10.3",
+    "nanoid": "^5.0.9",
+    "socket.io": "^4.8.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

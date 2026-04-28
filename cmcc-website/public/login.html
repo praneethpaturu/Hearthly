@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en" data-cmd>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0a0f1e" />
+<title>Sign in · Valet CMCC</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/styles.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined" />
+<style>
+  body { background: var(--bg); color: var(--ink); font-family: 'Inter', system-ui, sans-serif; min-height: 100dvh; margin: 0;
+         display: grid; place-items: center; padding: 24px;
+         background-image: radial-gradient(900px 500px at 80% -100px, rgba(56,189,248,.18), transparent 60%),
+                           radial-gradient(800px 500px at -100px 100%, rgba(56,189,248,.10), transparent 60%); }
+  .auth-card {
+    width: 100%; max-width: 460px; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 18px; padding: 28px;
+    box-shadow: 0 30px 60px rgba(0,0,0,.4);
+  }
+  .auth-card .mark {
+    width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 16px;
+    background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+    color: #052030; display: grid; place-items: center;
+    font-family: "Material Symbols Outlined"; font-size: 32px;
+    box-shadow: 0 0 30px rgba(56,189,248,.45);
+  }
+  .auth-card h1 { margin: 0 0 6px; font-size: 22px; text-align: center; }
+  .auth-card .sub { color: var(--muted); text-align: center; margin-bottom: 20px; font-size: 13px; }
+  .auth-card label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 700; display: block; margin-bottom: 6px; }
+  .auth-card input { width: 100%; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; color: var(--ink); font-size: 14px; outline: none; }
+  .auth-card input:focus { border-color: var(--brand); }
+  .auth-card button.primary {
+    width: 100%; padding: 12px; background: var(--brand); color: #052030;
+    border: 0; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; margin-top: 14px;
+  }
+  .auth-card button.primary:disabled { opacity: .5; cursor: not-allowed; }
+  .auth-card button.ghost { width: 100%; padding: 10px; background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; font-size: 13px; margin-top: 8px; }
+  .otp-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+  .otp-row input { text-align: center; font-size: 22px; font-weight: 700; padding: 14px 0; }
+  .demo-list { margin-top: 16px; padding: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; font-size: 12px; }
+  .demo-list .h { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 700; margin-bottom: 8px; }
+  .demo-list .row { display: flex; justify-content: space-between; padding: 4px 0; cursor: pointer; }
+  .demo-list .row:hover { color: var(--brand); }
+  .demo-list code { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .foot { margin-top: 18px; text-align: center; font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="auth-card" id="card"></div>
+<script src="/api.js"></script>
+<script>
+const card = document.getElementById('card');
+let stage = 'phone', phone = '', resendIn = 0, resendTimer = null;
+const u = api.user();
+if (api.token() && u?.role) {
+  // Validate token still works
+  api.http('GET', '/api/me').then(() => location.replace('/')).catch(() => { api.setToken(null); api.setUser(null); paint(); });
+} else paint();
+
+function paint() {
+  card.innerHTML = `
+    <div class="mark">monitoring</div>
+    <h1>${stage === 'phone' ? 'Operator sign-in' : 'Verify your number'}</h1>
+    <div class="sub">${stage === 'phone'
+      ? 'Centralized Monitoring &amp; Control Center · operator access only'
+      : `We sent a 6-digit code to <b>${phone}</b>`}</div>
+    ${stage === 'phone' ? phoneStep() : otpStep()}
+  `;
+  if (stage === 'phone') wirePhone(); else wireOtp();
+}
+
+function phoneStep() {
+  return `
+    <label>Mobile number</label>
+    <input id="phoneInp" inputmode="tel" placeholder="+919999900010" value="+919999900010" maxlength="13" />
+    <button class="primary" id="sendBtn">Send OTP</button>
+    <div class="demo-list">
+      <div class="h">Demo operators (OTP 123456)</div>
+      <div class="row" data-num="+919999900010"><b>Priya Iyer</b> · <span>NOC Lead</span></div>
+      <div class="row" data-num="+919999900011"><b>Sandeep Rao</b> · <span>NOC Operator</span></div>
+      <div class="row" data-num="+919999900012"><b>Rakhi Menon</b> · <span>NOC Operator</span></div>
+      <div class="row" data-num="+919999900013"><b>Faizan Ahmed</b> · <span>On-Call SRE</span></div>
+      <div class="row" data-num="+919999900014"><b>Akhila Reddy</b> · <span>Compliance</span></div>
+    </div>
+    <div class="foot">DPDP-compliant · TLS 1.3 · ap-south-1 (mock)</div>
+  `;
+}
+function wirePhone() {
+  document.getElementById('sendBtn').onclick = () => sendOtp();
+  document.getElementById('phoneInp').onkeydown = (e) => { if (e.key === 'Enter') sendOtp(); };
+  document.querySelectorAll('.demo-list .row').forEach((r) => r.onclick = () => {
+    document.getElementById('phoneInp').value = r.dataset.num;
+    sendOtp();
+  });
+}
+async function sendOtp() {
+  const p = document.getElementById('phoneInp').value.trim();
+  if (!/^\+91\d{10}$/.test(p)) return api.toast('Enter +91XXXXXXXXXX');
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true; btn.textContent = 'Sending OTP…';
+  try {
+    const r = await api.http('POST', '/api/auth/otp/request', { phone: p });
+    phone = p; stage = 'otp'; paint();
+    setTimeout(() => fillOtp(r.demoOtp || '123456'), 600);
+    startResend(30);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Send OTP';
+    api.toast(e.message);
+  }
+}
+
+function otpStep() {
+  return `
+    <label>Enter 6-digit code</label>
+    <div class="otp-row" id="otpRow">${[0,1,2,3,4,5].map((i) => `<input type="tel" inputmode="numeric" maxlength="1" data-i="${i}" />`).join('')}</div>
+    <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 8px;">
+      <span>Auto-fill: <b>123456</b></span>
+      <span class="resend" id="resend">Resend in ${resendIn}s</span>
+    </div>
+    <button class="primary" id="verifyBtn" disabled>Verify &amp; sign in</button>
+    <button class="ghost" id="changeBtn">Change number</button>
+  `;
+}
+function wireOtp() {
+  const inputs = [...document.querySelectorAll('#otpRow input')];
+  inputs.forEach((inp, i) => {
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/\D/g, '').slice(0, 1);
+      if (inp.value && i < 5) inputs[i + 1].focus();
+      check();
+    });
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Backspace' && !inp.value && i > 0) inputs[i - 1].focus(); });
+    inp.addEventListener('paste', (e) => {
+      const t = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+      if (t.length) { e.preventDefault(); fillOtp(t); }
+    });
+  });
+  document.getElementById('verifyBtn').onclick = () => verify(inputs.map((i) => i.value).join(''));
+  document.getElementById('changeBtn').onclick = () => { stage = 'phone'; stopResend(); paint(); };
+  function check() {
+    const c = inputs.map((i) => i.value).join('');
+    document.getElementById('verifyBtn').disabled = c.length !== 6;
+    if (c.length === 6) verify(c);
+  }
+}
+function fillOtp(c) {
+  const inputs = [...document.querySelectorAll('#otpRow input')];
+  c.split('').forEach((ch, i) => { if (inputs[i]) inputs[i].value = ch; });
+  // Programmatic .value assignment doesn't fire 'input' events, so the
+  // disabled-state listener never sees them. Update + verify directly.
+  const code = inputs.map((i) => i.value).join('');
+  const btn = document.getElementById('verifyBtn');
+  if (btn) btn.disabled = code.length !== 6;
+  if (code.length === 6) verify(code);
+  else inputs[Math.min(5, code.length)]?.focus();
+}
+function startResend(s) {
+  resendIn = s; stopResend();
+  resendTimer = setInterval(() => {
+    resendIn--;
+    const r = document.getElementById('resend'); if (!r) { stopResend(); return; }
+    if (resendIn <= 0) { r.textContent = 'Resend OTP'; r.style.cursor = 'pointer'; r.onclick = () => sendOtp(); stopResend(); }
+    else r.textContent = `Resend in ${resendIn}s`;
+  }, 1000);
+}
+function stopResend() { if (resendTimer) clearInterval(resendTimer); resendTimer = null; }
+
+async function verify(otp) {
+  if (otp.length !== 6) return;
+  const btn = document.getElementById('verifyBtn'); if (!btn) return;
+  btn.disabled = true; btn.textContent = 'Verifying…';
+  try {
+    const r = await api.http('POST', '/api/auth/otp/verify', { phone, otp });
+    api.setToken(r.token); api.setUser(r.user);
+    api.toast('Welcome ' + (r.user.name || ''));
+    setTimeout(() => location.replace('/'), 400);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Verify & sign in';
+    api.toast(e.message);
+    document.querySelectorAll('#otpRow input').forEach((i) => i.value = '');
+    document.querySelector('#otpRow input')?.focus();
+  }
+}
+</script>
+</body>
+</html>

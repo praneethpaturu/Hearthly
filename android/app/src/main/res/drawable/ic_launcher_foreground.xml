@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Adaptive icon foreground. Safe area is the inner 66dp circle (centered). -->
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M30,32 L54,82 L78,32 L67,32 L54,60 L41,32 Z" />
+    <path android:fillColor="#F59E0B"
+        android:pathData="M82,30 m-7,0 a7,7 0 1,0 14,0 a7,7 0 1,0 -14,0" />
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M82,30 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+</vector>

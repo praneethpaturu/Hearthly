@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#6366f1" />
+<title>Hearthly — Resident</title>
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/icon-180.png" />
+<link rel="stylesheet" href="/app.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined" />
+<!-- Leaflet (lightweight maps lib + free OpenStreetMap tiles, no API key needed). -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+</head>
+<body>
+<div class="shell" id="shell"></div>
+
+<script src="/api.js"></script>
+<script src="/providers.js"></script>
+<script src="/ui.js"></script>
+<script src="/wow.js"></script>
+<script>
+const shell = document.getElementById('shell');
+
+if (!api.token() || !api.user()) location.replace('/login.html');
+else if (api.user().role !== 'RESIDENT') location.replace('/login.html');
+else renderHome();
+
+// ─── Auth ──────────────────────────────────────────────────────────
+function renderAuth() {
+  shell.innerHTML = `
+    <div class="appbar">
+      <div class="brand"><div class="mark">support_agent</div><div class="name">Hearthly</div></div>
+      <div class="spacer"></div>
+      <a href="/" class="icon-btn" aria-label="back">close</a>
+    </div>
+    <div class="auth">
+      <div class="logo-big">person</div>
+      <h1>Welcome back</h1>
+      <div class="sub">Sign in with your phone — we'll send a one-time code.</div>
+
+      <div class="field">
+        <label>Phone number</label>
+        <input id="phone" inputmode="tel" placeholder="+91XXXXXXXXXX" value="+919999900001" autocomplete="tel" />
+      </div>
+      <div class="field" id="otpField" style="display:none;">
+        <label>One-time code</label>
+        <input id="otp" inputmode="numeric" placeholder="123456" autocomplete="one-time-code" maxlength="6" />
+      </div>
+      <div class="field">
+        <button class="btn cta block" id="submit">Send OTP</button>
+      </div>
+      <div class="demo-acc">Demo: <code>+919999900001</code> &middot; OTP <code>123456</code></div>
+    </div>`;
+  let stage = 'phone';
+  document.getElementById('submit').onclick = async () => {
+    try {
+      if (stage === 'phone') {
+        const phone = document.getElementById('phone').value.trim();
+        const r = await api.http('POST', '/api/auth/otp/request', { phone });
+        document.getElementById('otpField').style.display = '';
+        document.getElementById('otp').value = r.demoOtp || '';
+        document.getElementById('submit').textContent = 'Verify & continue';
+        stage = 'otp';
+        api.toast('OTP sent (demo: ' + r.demoOtp + ')');
+      } else {
+        const r = await api.http('POST', '/api/auth/otp/verify', {
+          phone: document.getElementById('phone').value.trim(),
+          otp: document.getElementById('otp').value.trim(),
+        });
+        api.setToken(r.token); api.setUser(r.user);
+        location.reload();
+      }
+    } catch (e) { api.toast(e.message); }
+  };
+}
+
+// ─── Main app shell ────────────────────────────────────────────────
+let me, services = [], orders = [], activeTab = 'home', socket;
+
+async function renderHome() {
+  me = await api.http('GET', '/api/me'); api.setUser(me);
+  showDpdpConsent();
+  if (!me.flatId) return renderFlatPicker();
+
+  [services, orders] = await Promise.all([
+    api.http('GET', '/api/services'),
+    api.http('GET', '/api/orders'),
+  ]);
+
+  socket = api.connectSocket();
+  socket?.on('order:status', (o) => upsertOrder(o));
+  socket?.on('agent:location', (loc) => updateTracking(loc));
+
+  paint();
+}
+
+async function renderFlatPicker() {
+  const flats = await api.http('GET', '/api/flats');
+  shell.innerHTML = `
+    ${appbar('Welcome')}
+    <div class="hero"><h1>Set up your flat</h1><div class="sub">Pick the flat where the valet should arrive.</div></div>
+    <div class="section">
+      <div class="card">
+        <div class="field">
+          <label>Flat</label>
+          <select id="flat">${flats.map((f) => `<option value="${f.id}">${f.label} (RFID ${f.rfidTag})</option>`).join('')}</select>
+        </div>
+        <div class="field">
+          <label>Your name</label>
+          <input id="name" value="${me.name || 'Aarav Sharma'}" />
+        </div>
+        <div class="field">
+          <button class="btn cta block" id="save">Continue</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('save').onclick = async () => {
+    const u = await api.http('PATCH', '/api/me', {
+      flatId: document.getElementById('flat').value,
+      name:   document.getElementById('name').value,
+    });
+    api.setUser(u); location.reload();
+  };
+}
+
+function appbar(roleLabel = 'Resident') {
+  return `
+    <div class="appbar">
+      <div class="brand">
+        <div class="mark">support_agent</div>
+        <div><div class="name">Hearthly</div><div style="font-size:11px;color:var(--muted);">${roleLabel}</div></div>
+      </div>
+      <div class="spacer"></div>
+      ${ui.bell()}
+      <button class="icon-btn" id="themeBtn" aria-label="theme" title="Toggle theme">${(localStorage.getItem('vl_theme')||'light')==='dark' ? 'light_mode' : 'dark_mode'}</button>
+      <button class="icon-btn" id="festBtn" aria-label="festival" title="Festival mode">${(document.documentElement.getAttribute('data-festival') || 'celebration')==='diwali'?'auto_awesome':'celebration'}</button>
+      <select id="lang" class="icon-btn" style="width:auto; padding:0 10px; font-family:inherit; font-size:12px; font-weight:600;">
+        <option value="EN" ${api.lang() === 'EN' ? 'selected' : ''}>EN</option>
+        <option value="HI" ${api.lang() === 'HI' ? 'selected' : ''}>HI</option>
+        <option value="TE" ${api.lang() === 'TE' ? 'selected' : ''}>TE</option>
+      </select>
+      <button class="icon-btn" id="logout" aria-label="logout">logout</button>
+    </div>`;
+}
+
+function bottomNav() {
+  const item = (id, label, icon) =>
+    `<a data-tab="${id}" class="${activeTab === id ? 'active' : ''}"><span class="ico">${icon}</span>${label}</a>`;
+  return `
+    <nav class="bottom-nav">
+      ${item('home',     api.t('services'),  'home')}
+      ${item('orders',   api.t('orders'),    'receipt_long')}
+      ${item('track',    api.t('tracking'),  'pin_drop')}
+      ${item('profile',  'Profile',          'person')}
+    </nav>`;
+}
+
+function paint() {
+  const active = orders.find((o) => ['ASSIGNED','EN_ROUTE','ARRIVED','IN_PROGRESS'].includes(o.status));
+  shell.innerHTML = `
+    ${appbar('Resident')}
+    ${activeTab === 'home'   ? viewHome(active)   : ''}
+    ${activeTab === 'orders' ? viewOrders()       : ''}
+    ${activeTab === 'track'  ? viewTrack(active)  : ''}
+    ${activeTab === 'profile'? viewProfile()      : ''}
+    ${bottomNav()}
+    <button class="fab" id="voiceFab" title="Voice booking">mic</button>`;
+
+  document.getElementById('logout').onclick = api.logout;
+  document.getElementById('lang').onchange = (e) => api.setLang(e.target.value);
+  document.getElementById('themeBtn').onclick = () => { wow.toggleTheme(); paint(); wow.tap(); };
+  document.getElementById('festBtn').onclick  = () => {
+    const cur = document.documentElement.getAttribute('data-festival');
+    const next = !cur ? 'diwali' : cur === 'diwali' ? 'holi' : cur === 'holi' ? 'pongal' : 'none';
+    wow.setFestival(next);
+    api.toast('Festival mode: ' + next.toUpperCase());
+    wow.tap(); paint();
+  };
+  shell.querySelectorAll('[data-tab]').forEach((el) => el.onclick = () => { activeTab = el.dataset.tab; paint(); wow.tap(); });
+  const fab = document.getElementById('voiceFab'); if (fab) fab.onclick = openVoiceBooking;
+  ui.wireBell();
+  // Dynamic Island-style activity for active service (replaces bottom bar)
+  if (active) localStorage.setItem('vl_active_dyn', JSON.stringify(active));
+  wow.dynamicIsland(active);
+
+  if (activeTab === 'home') wireHome();
+  if (activeTab === 'orders') wireOrders();
+  if (activeTab === 'track' && active) wireTrack(active);
+  if (activeTab === 'track' && active) startTrackingMap(active);
+  if (activeTab === 'profile') wireProfile();
+}
+
+function wireProfile() {
+  document.getElementById('plansBtn')?.addEventListener('click', () => wow.plansSheet());
+  document.getElementById('cmccBtn')?.addEventListener('click', async () => {
+    const cur = api.syncUrl();
+    // Default to the standalone CMCC's URL.
+    const guess = 'http://localhost:4040';
+    const v = await ui.prompt({
+      title: 'Connect this device to CMCC',
+      subtitle: `Server URL where the CMCC is running. Current device id: ${api.deviceId()}`,
+      label: 'Sync URL',
+      value: cur || guess,
+      cta: cur ? 'Update' : 'Connect',
+    });
+    if (v === null) return;
+    api.setSyncUrl(v);
+    api.toast(v ? 'Connected to ' + v : 'Disconnected');
+    paint();
+  });
+  const aiBtn = document.getElementById('aiKeyBtn');
+  if (aiBtn) aiBtn.onclick = async () => {
+    const cur = providers.openai.getKey();
+    const k = await ui.prompt({ title: 'OpenAI API key', subtitle: 'Stored only on this device · sent only to api.openai.com', label: 'sk-...', value: cur, cta: 'Save' });
+    if (k !== null) providers.openai.setKey(k);
+    paint();
+  };
+  const exp = document.getElementById('dataExport');
+  if (exp) exp.onclick = () => {
+    const blob = JSON.stringify({ user: me, orders: orders }, null, 2);
+    const url = URL.createObjectURL(new Blob([blob], { type: 'application/json' }));
+    const a = document.createElement('a'); a.href = url; a.download = `valet-data-${me.id}.json`; a.click();
+    api.toast('Data exported (DPDP-compliant)');
+  };
+  const del = document.getElementById('dataDelete');
+  if (del) del.onclick = async () => {
+    // Sensitive action — gate behind voice biometric + final confirmation.
+    const ok = await wow.voiceBio({ purpose: 'data deletion' });
+    if (!ok) return api.toast('Verification cancelled');
+    if (!confirm('Last check — really delete all local data?')) return;
+    localStorage.clear();
+    api.toast('Data deleted');
+    setTimeout(() => location.href = '/login.html', 600);
+  };
+}
+
+function wireTrack(active) {
+  if (!active) {
+    // Demo map — looping animation so the screen never feels dead
+    const mount = document.getElementById('trackMapMount');
+    if (mount) {
+      const fakeOrder = { id: 'demo', enRouteAt: new Date(Date.now() - 30000).toISOString() };
+      ui.map(mount, { order: fakeOrder, etaMin: 5, tripSec: 60 });
+    }
+    document.getElementById('goBookFromTrack')?.addEventListener('click', () => { activeTab = 'home'; paint(); });
+    return;
+  }
+  const btn = document.getElementById('callAgent');
+  if (btn) btn.onclick = async () => {
+    api.toast('Connecting via Exotel…');
+    const call = await providers.calls.startMaskedCall(me, active.agent || { phone: '+919999900002' });
+    setTimeout(() => providers.push.show('Call connected', `${call.from_masked} ↔ ${call.to_masked} via ${call.virtual_number}`, { icon: 'call' }), 600);
+  };
+  const chatBtn = document.getElementById('chatAgent');
+  if (chatBtn) chatBtn.onclick = () => ui.chat(active);
+  const mapMount = document.getElementById('trackMapMount');
+  if (mapMount) ui.map(mapMount, { order: active, etaMin: 8, tripSec: 60 });
+}
+
+// ─── Views ─────────────────────────────────────────────────────────
+function viewHome(active) {
+  const greeting = greet();
+  const colors = ['c1','c2','c3','c4','c5'];
+  return `
+    <div class="hero">
+      <div class="greeting">${greeting} <span class="live"></span></div>
+      <h1>${(me.name || '').split(' ')[0] || 'Resident'}</h1>
+      <div class="sub">Flat <b>${me.flat?.label || ''}</b> &middot; Prestige Sunrise Park</div>
+    </div>
+
+    ${active ? activeCard(active) : ''}
+
+    <div id="recoSlot"></div>
+
+    <div class="section" style="padding-top: 12px;">
+      ${wow.weatherNudge(orders, services)}
+    </div>
+
+    <div class="section" style="padding-top: 12px;">
+      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="wallet-card">
+          <div class="lbl">Valet wallet</div>
+          <div class="bal">${api.fmtINR(walletBalance())}</div>
+          <div class="row">
+            <button id="walletAdd">+ Add</button>
+            <button id="walletHistory">History</button>
+          </div>
+        </div>
+        <div id="esgSlot">${wow.esgCard(orders)}</div>
+      </div>
+    </div>
+
+    <div class="section" style="padding-top: 12px;">
+      <div class="grid" style="grid-template-columns: repeat(5, 1fr); gap: 6px;">
+        <button class="btn ghost sm" id="quickAria"    style="font-size:12px;">Aria</button>
+        <button class="btn ghost sm" id="quickVisitor" style="font-size:12px;">Visitor</button>
+        <button class="btn ghost sm" id="quickPhoto"   style="font-size:12px;">Issue</button>
+        <button class="btn ghost sm" id="quickDamage"  style="font-size:12px;">Damage</button>
+        <button class="btn ghost sm" id="quickLocker"  style="font-size:12px;">Locker</button>
+      </div>
+    </div>
+
+    <div id="usualSlot"></div>
+
+    <div class="section-title"><h3>${api.t('services')}</h3></div>
+    <div class="svc-grid" id="svcGrid">
+      ${services.map((s, i) => {
+        const co = wow.bulkBuyCoalition(s.id);
+        const showCoal = s.basePrice > 0 && co.peers >= 8;
+        return `
+        <div class="svc ${colors[i % colors.length]}" data-svc="${s.id}" tabindex="0">
+          <div class="ico">${s.icon || 'cleaning_services'}</div>
+          <div class="name">${s.name}</div>
+          <div class="price">${s.basePrice ? `From <b>${api.fmtINR(s.basePrice)}</b>` : '<b>Free</b>'} &middot; ${s.slaMins}m</div>
+          ${showCoal ? `<span class="coalition" title="${co.peers} of ${co.target} neighbours">👥 ${co.peers}/${co.target} · save ${co.discount}%</span>` : ''}
+        </div>
+      `;}).join('')}
+    </div>
+
+    <div class="section-title"><h3>Upcoming</h3><a id="seeSchedule">Calendar</a></div>
+    <div class="order-list" id="upcomingList"></div>
+
+    <div class="section-title"><h3>Recent</h3><a data-tab="orders">See all</a></div>
+    <div class="order-list" id="recentList"></div>
+  `;
+}
+
+function activeCard(o) {
+  const stages = ['ASSIGNED','EN_ROUTE','ARRIVED','IN_PROGRESS'];
+  const idx = stages.indexOf(o.status);
+  return `
+    <div class="spotlight">
+      <div class="row">
+        <div class="ico">${o.service?.icon || 'cleaning_services'}</div>
+        <div class="meta">
+          <div class="t1">${o.service?.name}</div>
+          <div class="t2">Agent ${o.agent?.name || '—'} &middot; ${api.fmtTime(o.scheduledAt)}</div>
+        </div>
+        <span class="pill">${o.status.replace('_',' ')}</span>
+      </div>
+      <div class="progress">
+        ${stages.map((_, i) => `<span class="${i <= idx ? 'on' : ''}"></span>`).join('')}
+      </div>
+    </div>`;
+}
+
+function wireHome() {
+  document.querySelectorAll('[data-svc]').forEach((el) => {
+    el.onclick = () => openBookingSheet(services.find((s) => s.id === el.dataset.svc));
+  });
+  // Smart "Book your usual" card
+  const usual = wow.smartUsualSuggestion(orders);
+  if (usual) {
+    const svc = services.find((s) => s.id === usual.serviceId);
+    if (svc) {
+      document.getElementById('usualSlot').innerHTML = `
+        <div class="section" style="padding-top: 12px;">
+          <div class="usual-card">
+            <span class="ai-tag">AI · ${(usual.confidence*100|0)}%</span>
+            <div class="usual-h">Predicted from your last ${usual.count} bookings</div>
+            <div class="usual-b">📌 ${svc.name}</div>
+            <div class="usual-s">Suggested for ${usual.at.toLocaleDateString([], {weekday:'long'})} ${usual.at.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+            <button class="usual-go" id="usualGo">Book in 1 tap</button>
+          </div>
+        </div>`;
+      document.getElementById('usualGo').onclick = async () => {
+        wow.tap();
+        try {
+          const o = await api.http('POST', '/api/orders', { serviceId: svc.id, scheduledAt: usual.at.toISOString(), notes: '[via Smart-Usual]' });
+          upsertOrder(o); wow.success();
+          providers.push.show('One-tap booking', `${svc.name} confirmed`, { icon: 'auto_awesome' });
+          activeTab = 'track'; paint();
+        } catch (e) { api.toast(e.message); }
+      };
+    }
+  }
+  const recent = orders.slice(0, 3);
+  document.getElementById('recentList').innerHTML = recent.length
+    ? recent.map(orderRow).join('')
+    : `<div class="card muted">${api.t('noOrders')}</div>`;
+  recent.forEach(wireOrderRowActions);
+
+  // Build a unified "Upcoming" list = open orders + next recurrence of each schedule.
+  const now = new Date();
+  const upcoming = [];
+  orders.filter((o) => !['COMPLETED','CANCELLED'].includes(o.status))
+        .forEach((o) => upcoming.push({
+          when: new Date(o.scheduledAt), kind: 'order',
+          icon: o.service?.icon || 'cleaning_services',
+          name: o.service?.name || o.serviceId,
+          sub: `${o.flat?.label || ''} · ${o.status.replace('_',' ')}`,
+        }));
+  ui.readSchedules().forEach((sch) => {
+    const next = ui.nextOccurrence(sch, now);
+    const svc = services.find((s) => s.id === sch.serviceId);
+    upcoming.push({
+      when: next, kind: 'schedule',
+      icon: svc?.icon || 'event_repeat',
+      name: (svc?.name || sch.serviceId) + ' (weekly)',
+      sub: `Every ${ui.DAY_NAMES[sch.dayOfWeek]} at ${sch.time}`,
+    });
+  });
+  upcoming.sort((a, b) => a.when - b.when);
+  const upBox = document.getElementById('upcomingList');
+  upBox.innerHTML = upcoming.length
+    ? upcoming.slice(0, 4).map((u) => `
+        <div class="order">
+          <div class="ico">${u.icon}</div>
+          <div class="meta">
+            <div class="t1">${u.name}</div>
+            <div class="t2">${u.when.toLocaleString([], { weekday:'short', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })} · ${u.sub}</div>
+          </div>
+          <span class="badge ${u.kind === 'schedule' ? 'auto' : 'assigned'}">${u.kind === 'schedule' ? 'WEEKLY' : 'UPCOMING'}</span>
+        </div>`).join('')
+    : `<div class="card muted">Nothing upcoming. Tap "Calendar" to set a recurring schedule.</div>`;
+  document.getElementById('seeSchedule').onclick = (e) => { e.preventDefault(); ui.scheduleView(orders); };
+
+  // Service recommendations
+  const recos = providers.ai.recommendNext(orders);
+  const slot = document.getElementById('recoSlot');
+  if (slot && recos.length) {
+    slot.innerHTML = `<div class="section" style="padding-top: 12px;"><div class="reco">
+      <div class="ico">tips_and_updates</div>
+      <div class="meta">${recos[0].message}<div class="sub">Confidence ${(recos[0].confidence*100|0)}% · model: ${recos[0].kind}</div></div>
+    </div></div>`;
+  }
+
+  document.getElementById('walletAdd').onclick = () => walletTopup();
+  document.getElementById('walletHistory').onclick = () => ui.walletHistory();
+  document.getElementById('quickAria').onclick = () => wow.ariaSheet({ services, me, orders });
+  document.getElementById('quickVisitor').onclick = () => wow.visitorSheet();
+  document.getElementById('quickPhoto').onclick = async () => {
+    const r = await wow.photoServiceSheet(services);
+    if (r) {
+      const svc = services.find((s) => s.id === r.serviceId);
+      if (svc) openBookingSheet(svc);
+    }
+  };
+  document.getElementById('quickLocker').onclick = () => wow.smartLockerSheet();
+  document.getElementById('quickDamage').onclick = () => wow.damageReportSheet();
+  // Weather nudge: clicking the CTA opens the suggested booking
+  const wn = document.getElementById('weatherNudge');
+  if (wn) wn.querySelector('button').onclick = () => {
+    const sid = wn.querySelector('button').dataset.svcId;
+    const svc = services.find((s) => s.id === sid);
+    if (svc) openBookingSheet(svc);
+  };
+}
+
+function walletBalance() {
+  return Number(localStorage.getItem('vl_wallet') || 50000);
+}
+function walletAdd(paise) {
+  const next = walletBalance() + paise;
+  localStorage.setItem('vl_wallet', String(next));
+  return next;
+}
+async function walletTopup() {
+  const rzpOrder = await providers.payments.createOrder(50000, 'wallet-' + Date.now());
+  const result = await providers.payments.openCheckout(rzpOrder, {});
+  if (result.status === 'captured') {
+    walletAdd(50000);
+    ui.recordWalletTx('Wallet topup', 50000);
+    providers.push.show('Wallet topped up', '₹500 added', { icon: 'account_balance_wallet' });
+    paint();
+  }
+}
+
+function wireOrderRowActions(o) {
+  document.querySelectorAll(`[data-cancel="${o.id}"]`).forEach((b) => b.onclick = () => cancelOrder(o.id));
+  document.querySelectorAll(`[data-rate="${o.id}"]`).forEach((b) => b.onclick = () => rateOrder(o.id));
+  document.querySelectorAll(`[data-complain="${o.id}"]`).forEach((b) => b.onclick = () => openComplaint(o));
+  document.querySelectorAll(`[data-tip="${o.id}"]`).forEach((b) => b.onclick = () => openTip(o));
+  document.querySelectorAll(`[data-proof="${o.id}"]`).forEach((b) => b.onclick = () => viewProof(o));
+}
+
+function viewOrders() {
+  return `
+    <div class="hero"><h1>${api.t('orders')}</h1><div class="sub">${orders.length} total</div></div>
+    <div class="section" style="padding-top: 0;">
+      <div style="display: flex; gap: 8px;">
+        <button class="btn ghost sm" id="ordSchedule"><span class="material-symbols-outlined" style="font-family:'Material Symbols Outlined'; font-size:16px; vertical-align:-3px;">calendar_month</span> Schedule</button>
+      </div>
+    </div>
+    <div class="order-list" id="allOrders"></div>`;
+}
+
+function wireOrders() {
+  const list = document.getElementById('allOrders');
+  list.innerHTML = orders.length
+    ? orders.map(orderRow).join('')
+    : `<div class="card muted">${api.t('noOrders')}</div>`;
+  orders.forEach(wireOrderRowActions);
+  // Tap whole row → detail
+  document.querySelectorAll('.order-list .order').forEach((row, i) => {
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', (e) => {
+      // Don't open detail if a button inside was tapped
+      if (e.target.closest('button')) return;
+      ui.orderDetail(orders[i]);
+    });
+  });
+  document.getElementById('ordSchedule').onclick = () => ui.scheduleView(orders);
+}
+
+function viewTrack(active) {
+  if (!active) {
+    return `
+      <div class="hero"><h1>${api.t('tracking')}</h1>
+        <div class="sub">Demo view — book a service for live updates</div>
+      </div>
+      <div class="section">
+        <div class="card">
+          <div id="trackMapMount" style="margin-top: 4px;"></div>
+          <div style="margin-top: 12px; display: flex; gap: 8px;">
+            <button class="btn cta" id="goBookFromTrack" style="flex:1;">Book a service</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  const eta = providers.ai.estimateEta(12.91, 77.6, active.flat?.label);
+  return `
+    <div class="hero"><h1>${api.t('tracking')}</h1><div class="sub">${active.service?.name} &middot; <span class="badge ${active.status.toLowerCase()}">${active.status}</span></div></div>
+    <div class="section">
+      <div class="card">
+        <div class="track-meta">
+          <div class="avatar">${(active.agent?.name || '?').split(' ').map((s) => s[0]).slice(0,2).join('')}</div>
+          <div style="flex:1;">
+            <div style="font-weight:700;">${active.agent?.name || 'Agent'} <span class="kyc-badge" style="margin-left:6px;">KYC</span></div>
+            <div style="font-size:12px; color: var(--muted);">${providers.calls.mask(active.agent?.phone)}</div>
+          </div>
+          <button class="icon-btn" id="chatAgent" aria-label="chat">chat</button>
+          <button class="icon-btn" id="callAgent" aria-label="call">call</button>
+        </div>
+        <div id="trackMapMount" style="margin-top: 8px;"></div>
+        <div class="reco" style="margin-top: 10px;">
+          <div class="ico">memory</div>
+          <div class="meta">ETA <b>${eta.eta_min}m</b> (${eta.confidence_low}–${eta.confidence_high})<div class="sub">model: ${eta.model} · features: ${eta.features_used.join(', ')}</div></div>
+        </div>
+        <div class="section-title" style="padding: 16px 0 8px;"><h3>Timeline</h3></div>
+        <div class="timeline">
+          ${(active.history || []).slice().reverse().map((h) => `
+            <div class="step"><b>${h.status.replace('_',' ')}</b> &middot; ${new Date(h.at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} ${h.via ? '&middot; via ' + h.via : ''}</div>
+          `).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
+function viewProfile() {
+  return `
+    <div class="hero"><h1>Profile</h1></div>
+    <div class="section">
+      <div class="card">
+        <div class="track-meta">
+          <div class="avatar">${(me.name || '?').split(' ').map((s) => s[0]).slice(0,2).join('')}</div>
+          <div style="flex:1;">
+            <div style="font-weight:700;">${me.name}</div>
+            <div style="font-size:12px; color: var(--muted);">${me.phone}</div>
+          </div>
+        </div>
+        <div style="margin-top:14px; font-size:13px;">
+          <div style="display:flex; justify-content:space-between; padding: 8px 0; border-top: 1px solid var(--line-soft);">
+            <span class="muted">Flat</span><b>${me.flat?.label || '—'}</b>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding: 8px 0; border-top: 1px solid var(--line-soft);">
+            <span class="muted">RFID tag</span><b>${me.flat?.rfidTag || '—'}</b>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding: 8px 0; border-top: 1px solid var(--line-soft);">
+            <span class="muted">Language</span><b>${api.lang()}</b>
+          </div>
+        </div>
+        <div class="field" style="margin-top: 16px;">
+          <button class="btn ghost block" id="plansBtn">⭐ Plans &amp; subscriptions <span style="float:right; color: var(--brand-2);">${(localStorage.getItem('vl_plan')||'silver').toUpperCase()}</span></button>
+        </div>
+        <div class="field">
+          <button class="btn ghost block" id="cmccBtn">📡 Connect to CMCC <span style="float:right; color: var(--brand-2); font-size: 11px;">${api.syncUrl() ? 'CONNECTED' : 'OFFLINE'}</span></button>
+        </div>
+        <div class="field">
+          <button class="btn ghost block" id="aiKeyBtn">${providers.openai.hasKey() ? '✓ OpenAI key set (tap to change)' : 'Set OpenAI key for voice booking'}</button>
+        </div>
+        <div class="field">
+          <button class="btn ghost block" id="dataExport">Export my data (DPDP)</button>
+        </div>
+        <div class="field">
+          <button class="btn danger block" id="dataDelete">Delete my data</button>
+        </div>
+        <div class="field">
+          <button class="btn ghost block" onclick="api.logout()">${api.t('logout')}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ─── Order row ────────────────────────────────────────────────────
+function orderRow(o) {
+  const status = (o.status || '').toLowerCase();
+  const hasProof = !!o.proofKey;
+  return `
+    <div class="order">
+      <div class="ico">${o.service?.icon || 'cleaning_services'}</div>
+      <div class="meta">
+        <div class="t1">${o.service?.name} ${hasProof ? '<span class="proof-pill">verified</span>' : ''}</div>
+        <div class="t2">${api.fmtTime(o.scheduledAt)} &middot; ${o.flat?.label || (o.deviceId ? 'Bin' : '—')} &middot; ${api.fmtINR(o.amount)}</div>
+      </div>
+      <div class="right">
+        <span class="badge ${status}">${o.status.replace('_',' ')}</span>
+        <div class="actions">
+          ${['CREATED','ASSIGNED'].includes(o.status) ? `<button class="btn danger" data-cancel="${o.id}">${api.t('cancel')}</button>` : ''}
+          ${hasProof ? `<button class="btn ghost sm" data-proof="${o.id}">View proof</button>` : ''}
+          ${o.status === 'COMPLETED' && !o.rating ? `<button class="btn ghost sm" data-rate="${o.id}">${api.t('rate')}</button>` : ''}
+          ${o.status === 'COMPLETED' && o.rating && !o.tipped ? `<button class="btn ghost sm" data-tip="${o.id}">Tip ₹</button>` : ''}
+          ${o.status === 'COMPLETED' && !o.complaintId ? `<button class="btn ghost sm" data-complain="${o.id}">Report</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function viewProof(o) {
+  const url = providers.storage.fetchUrl(o.proofKey);
+  const html = `
+    <div class="sheet-overlay open" id="prfOv">
+      <div class="sheet">
+        <div class="grip"></div>
+        <h3>Proof of service</h3>
+        <div class="desc">${o.service?.name} · ${api.fmtTime(o.completedAt || o.createdAt)}</div>
+        ${url ? `<img src="${url}" class="proof-img" />` : '<div class="muted">No image stored</div>'}
+        ${o.proofVerification ? `<div class="reco" style="margin-top:10px;"><div class="ico">verified</div><div class="meta"><b>${o.proofVerification.passed ? 'Verified' : 'Flagged'}</b> · ${(o.proofVerification.confidence*100|0)}% confidence<div class="sub">${o.proofVerification.notes} · ${o.proofVerification.model}</div></div></div>` : ''}
+        <div class="field"><button class="btn ghost block" id="prfClose">Close</button></div>
+      </div>
+    </div>`;
+  const el = document.createElement('div'); el.innerHTML = html; document.body.appendChild(el.firstElementChild);
+  document.getElementById('prfClose').onclick = () => document.getElementById('prfOv').remove();
+}
+
+async function openTip(o) {
+  const tip = await ui.tipSheet(o.agent?.name);
+  if (!tip) return;
+  o.tipped = tip.amount;
+  ui.recordWalletTx(`Tip to ${o.agent?.name || 'agent'}`, -tip.amount);
+  const i = orders.findIndex((x) => x.id === o.id); if (i >= 0) orders[i] = o;
+  paint();
+}
+
+function openComplaint(o) {
+  const html = `
+    <div class="sheet-overlay open" id="cpOv">
+      <div class="sheet">
+        <div class="grip"></div>
+        <h3>Report an issue</h3>
+        <div class="desc">${o.service?.name}</div>
+        <div class="field"><label>Category</label>
+          <select id="cpCat">
+            <option>Quality of service</option>
+            <option>Damage / loss</option>
+            <option>Late arrival</option>
+            <option>Behavior</option>
+            <option>Billing</option>
+          </select>
+        </div>
+        <div class="field"><label>What happened?</label>
+          <textarea id="cpDesc" rows="3" placeholder="Describe the issue"></textarea>
+        </div>
+        <div class="muted" style="font-size:11px; margin-bottom:10px;">SLA: response within 4 hours, resolution within 24 hours. Auto-escalates if breached.</div>
+        <div class="field"><button class="btn cta block" id="cpSend">Submit</button></div>
+        <div class="field"><button class="btn ghost block" id="cpClose">Cancel</button></div>
+      </div>
+    </div>`;
+  const el = document.createElement('div'); el.innerHTML = html; document.body.appendChild(el.firstElementChild);
+  document.getElementById('cpClose').onclick = () => document.getElementById('cpOv').remove();
+  document.getElementById('cpSend').onclick = () => {
+    const cat = document.getElementById('cpCat').value;
+    const desc = document.getElementById('cpDesc').value;
+    const cId = 'cmpl_' + Math.random().toString(36).slice(2, 9);
+    o.complaintId = cId;
+    o.complaint = { id: cId, category: cat, description: desc, status: 'OPEN', sla_breach_at: new Date(Date.now() + 4 * 3600 * 1000).toISOString(), createdAt: new Date().toISOString() };
+    document.getElementById('cpOv').remove();
+    providers.push.show('Complaint received', `Ticket #${cId.slice(-5)} · response in 4h`, { icon: 'support_agent' });
+    paint();
+  };
+}
+
+// ─── Booking sheet ─────────────────────────────────────────────────
+function openBookingSheet(s) {
+  const slots = [1,2,3,4,6,8,12].map((h) => {
+    const d = new Date(Date.now() + h * 3600_000);
+    return { iso: d.toISOString(), label: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+  });
+  let chosen = slots[0].iso;
+  let recurring = false;
+  const co = wow.bulkBuyCoalition(s.id);
+  const showCoalitionInline = s.basePrice > 0 && co.peers >= 8;
+  const isCarwash = s.id === 'svc-carwash';
+  const isLaundry = s.id === 'svc-laundry';
+  const html = `
+    <div class="sheet-overlay open" id="bkOverlay">
+      <div class="sheet">
+        <div class="grip"></div>
+        <h3>${s.name}</h3>
+        <div class="desc">ETA ${s.slaMins} min &middot; ${api.fmtINR(s.basePrice)}</div>
+        ${showCoalitionInline ? `<div class="reco" style="margin: 0 0 12px;"><div class="ico">groups</div><div class="meta"><b>${co.peers} of ${co.target} neighbours</b> have booked today — book now to save <b>${co.discount}%</b><div class="sub">Group buy unlocks at ${co.target} bookings · saves ₹${co.savings}</div></div></div>` : ''}
+        ${isCarwash ? `<div class="field"><label>Vehicle photo (optional · AI auto-detects plate)</label><input type="file" id="bkPlate" accept="image/*" capture="environment" /><div id="bkPlateOut" style="font-size:12px; margin-top:6px;"></div></div>` : ''}
+        ${isLaundry ? `<div class="field"><label>Photo of laundry pile (optional · AI quotes)</label><input type="file" id="bkLaundry" accept="image/*" capture="environment" /><div id="bkLaundryOut" style="font-size:12px; margin-top:6px;"></div></div>` : ''}
+        <label>${api.t('schedule')}</label>
+        <div class="chips" id="slotChips">
+          ${slots.map((sl, i) => `<div class="chip ${i===0?'on':''}" data-iso="${sl.iso}">${sl.label}</div>`).join('')}
+        </div>
+        <div class="field">
+          <div class="toggle" id="bkRecurring">
+            <div>
+              <div style="font-weight:700; font-size:14px;">Repeat weekly</div>
+              <div style="font-size:11px; color:var(--muted);">Auto-book this every 7 days</div>
+            </div>
+            <div class="switch"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>${api.t('notes')}</label>
+          <textarea id="bkNotes" rows="2" placeholder="Leave at door / ring bell / call on arrival"></textarea>
+        </div>
+        <div class="field"><button class="btn cta block" id="bkConfirm">${api.t('confirm')}</button></div>
+        <div class="field"><button class="btn ghost block" id="bkClose">Cancel</button></div>
+      </div>
+    </div>`;
+  const wrap = document.createElement('div'); wrap.innerHTML = html; document.body.appendChild(wrap.firstElementChild);
+  const overlay = document.getElementById('bkOverlay');
+  overlay.querySelectorAll('.chip').forEach((c) => c.onclick = () => {
+    overlay.querySelectorAll('.chip').forEach((x) => x.classList.remove('on'));
+    c.classList.add('on'); chosen = c.dataset.iso;
+  });
+  const recToggle = overlay.querySelector('#bkRecurring');
+  recToggle.onclick = () => { recurring = !recurring; recToggle.classList.toggle('on', recurring); };
+  // ANPR (car wash)
+  const plateInp = overlay.querySelector('#bkPlate');
+  if (plateInp) plateInp.onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const out = overlay.querySelector('#bkPlateOut');
+    out.innerHTML = '<span class="muted">Reading plate…</span>';
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const r = await wow.anprFromPhoto(reader.result);
+      out.innerHTML = r.plate
+        ? `<div class="reco"><div class="ico">directions_car</div><div class="meta"><b>${r.plate}</b> · ${r.color} ${r.make} ${r.model}<div class="sub">ANPR · ${(r.confidence*100|0)}% confidence · profile auto-loaded</div></div></div>`
+        : '<span class="muted">Could not read plate. Try a clearer photo.</span>';
+    };
+    reader.readAsDataURL(f);
+  };
+  // Garment recognition (laundry)
+  const laundryInp = overlay.querySelector('#bkLaundry');
+  if (laundryInp) laundryInp.onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const out = overlay.querySelector('#bkLaundryOut');
+    out.innerHTML = '<span class="muted">Counting items…</span>';
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const r = await wow.garmentRecognition(reader.result);
+      out.innerHTML = `<div class="reco"><div class="ico">checkroom</div><div class="meta"><b>${r.total_items} items · ${r.estimated_kg} kg</b> · quote <b>₹${r.quote_inr}</b><div class="sub">${r.items.map((it) => `${it.count} ${it.type}`).join(' · ')} · ${(r.confidence*100|0)}% confidence</div></div></div>`;
+    };
+    reader.readAsDataURL(f);
+  };
+  overlay.querySelector('#bkClose').onclick = () => overlay.remove();
+  overlay.querySelector('#bkConfirm').onclick = async () => {
+    try {
+      const notes = (overlay.querySelector('#bkNotes').value || '') + (recurring ? ' [recurring:weekly]' : '');
+      const o = await api.http('POST', '/api/orders', { serviceId: s.id, scheduledAt: chosen, notes: notes.trim() || null });
+      overlay.remove();
+      upsertOrder(o);
+      providers.push.show('Order placed', `${s.name} confirmed for ${new Date(chosen).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`, { icon: 'check_circle' });
+      if (!localStorage.getItem('vl_first_done')) {
+        localStorage.setItem('vl_first_done', '1');
+        wow.confetti();
+      } else { wow.success(); }
+      if (s.basePrice > 0) await runRazorpayCheckout(o);
+      // Jump to the Track tab so the map shows for the freshly booked service.
+      activeTab = 'track';
+      paint();
+      // Persist a real recurring schedule when the toggle was on.
+      if (recurring) {
+        const d = new Date(chosen);
+        const sch = {
+          id: 'sch_' + Math.random().toString(36).slice(2, 9),
+          serviceId: s.id,
+          dayOfWeek: d.getDay(),
+          time: `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`,
+          notes: 'auto-recurring',
+          createdAt: new Date().toISOString(),
+        };
+        const all = JSON.parse(localStorage.getItem('vl_schedules') || '[]');
+        all.push(sch);
+        localStorage.setItem('vl_schedules', JSON.stringify(all));
+        providers.push.show('Recurring schedule saved', `Every ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][sch.dayOfWeek]} at ${sch.time}`, { icon: 'event_repeat' });
+      }
+    } catch (e) { api.toast(e.message); }
+  };
+}
+
+async function runRazorpayCheckout(o) {
+  const rzpOrder = await providers.payments.createOrder(o.amount, o.id);
+  const result = await providers.payments.openCheckout(rzpOrder, {
+    onSuccess: (p) => {
+      providers.push.show('Payment received', `₹${(p.amount/100).toFixed(0)} via ${p.method.toUpperCase()} (${p.vpa})`, { icon: 'payments' });
+    },
+    onCancel: () => api.toast('Payment cancelled'),
+  });
+  return result;
+}
+
+// ─── Order mutations ────────────────────────────────────────────────
+async function cancelOrder(id) {
+  try { upsertOrder(await api.http('POST', `/api/orders/${id}/cancel`)); api.toast('Cancelled'); }
+  catch (e) { api.toast(e.message); }
+}
+async function rateOrder(id) {
+  const o = orders.find((x) => x.id === id);
+  const r = await ui.starRating({ subtitle: o?.service?.name });
+  if (!r) return;
+  try {
+    const updated = await api.http('POST', `/api/orders/${id}/rate`, { stars: r.stars, comment: r.comment });
+    upsertOrder(updated);
+    api.toast(api.t('rateThanks'));
+    setTimeout(async () => {
+      const tip = await ui.tipSheet(o?.agent?.name);
+      if (tip) {
+        const u = orders.find((x) => x.id === id);
+        if (u) u.tipped = tip.amount;
+        ui.recordWalletTx(`Tip to ${o?.agent?.name || 'agent'}`, -tip.amount);
+        paint();
+      }
+    }, 400);
+  } catch (e) { api.toast(e.message); }
+}
+
+function upsertOrder(o) {
+  const i = orders.findIndex((x) => x.id === o.id);
+  if (i >= 0) orders[i] = o; else orders.unshift(o);
+  paint();
+}
+
+// ─── Live tracking ─────────────────────────────────────────────────
+let lastLoc = null;
+function updateTracking(loc) {
+  lastLoc = loc;
+  if (activeTab !== 'track') return;
+  const eta = document.getElementById('etaBig'); if (eta) eta.textContent = loc.etaMin ?? '—';
+  const txt = document.getElementById('gpsTxt'); if (txt) txt.textContent = `GPS ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}`;
+  // Move agent dot toward home (20% top, 80% left → 20% top, 80% left of map)
+  const agent = document.getElementById('agentDot');
+  if (agent && typeof loc.lat === 'number') {
+    const t = Math.max(0, Math.min(1, (loc.lat - 12.9100) / (12.9120 - 12.9100)));
+    agent.style.left = (20 + t * 60) + '%';
+    agent.style.top  = (80 - t * 60) + '%';
+  }
+}
+function startTrackingMap(o) {
+  if (lastLoc) updateTracking(lastLoc);
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────
+function greet() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+
+// Live Activity banner → switching to track tab
+window.addEventListener('vl:goto', (e) => { activeTab = e.detail; paint(); });
+
+// ─── DPDP Act 2023 consent (one-time) ──────────────────────────────
+function showDpdpConsent() {
+  if (localStorage.getItem('vl_dpdp_v1')) return;
+  const html = `
+    <div class="sheet-overlay open" id="dpOv">
+      <div class="sheet">
+        <div class="grip"></div>
+        <h3>Privacy & data consent</h3>
+        <div class="desc">Per India's Digital Personal Data Protection Act 2023, we need your explicit consent.</div>
+        <div style="font-size:13px; color:var(--ink-2); line-height:1.55;">
+          Hearthly will collect: phone, name, flat, service history, payment metadata, and device location while a service is in progress. Data is stored in <b>ap-south-1 (Mumbai)</b>. You may export or delete your data anytime from Profile → Privacy.
+        </div>
+        <div class="field" style="margin-top:14px;"><button class="btn cta block" id="dpAccept">I consent &amp; continue</button></div>
+        <div class="field"><button class="btn ghost block" id="dpDeny">I do not consent</button></div>
+        <div class="muted" style="font-size:11px; text-align:center;">Grievance officer: dpo@hearthly.in</div>
+      </div>
+    </div>`;
+  const el = document.createElement('div'); el.innerHTML = html; document.body.appendChild(el.firstElementChild);
+  document.getElementById('dpAccept').onclick = () => {
+    localStorage.setItem('vl_dpdp_v1', JSON.stringify({ at: new Date().toISOString(), v: 1 }));
+    document.getElementById('dpOv').remove();
+    api.toast('Consent recorded');
+    // Kick off the resident onboarding tour right after consent.
+    setTimeout(() => wow.tour([
+      { emoji: '🏠', title: 'Welcome to Hearthly', body: 'Book home services, track agents live, pay via UPI — all in one app.' },
+      { emoji: '🎤', title: 'Aria · your assistant', body: 'Tap "Aria" on Home and ask in English / हिन्दी / తెలుగు: "Book my usual laundry", "Top up wallet ₹500".' },
+      { emoji: '🗺️', title: 'Live tracking', body: 'After booking, the Track tab shows your agent on a real map with ETA. Chat or call them with one tap.' },
+      { emoji: '🌱', title: 'Earn ESG points', body: 'Each pickup saves CO₂ — climb the community leaderboard, unlock streak badges.' },
+      { emoji: '📅', title: 'Recurring schedules', body: 'Toggle "Repeat weekly" while booking and we will auto-book it for you.' },
+    ], 'resident_v1'), 700);
+  };
+  document.getElementById('dpDeny').onclick = () => { document.getElementById('dpOv').remove(); api.logout(); };
+}
+
+// ─── Voice booking (OpenAI Whisper + GPT) ──────────────────────────
+async function openVoiceBooking() {
+  let recorder, chunks = [];
+  const html = `
+    <div class="sheet-overlay open" id="vcOv">
+      <div class="sheet" style="text-align:center;">
+        <div class="grip"></div>
+        <h3>Book by voice</h3>
+        <div class="desc" id="vcDesc">Tap the mic and speak in English, हिन्दी, or తెలుగు. e.g. "tomorrow morning 8 am, garbage pickup".</div>
+        <div style="margin: 24px 0;"><button class="mic-btn" id="vcMic">mic</button></div>
+        <div id="vcOut" style="font-size:13px; min-height: 40px; color: var(--ink-2);"></div>
+        <div class="field"><button class="btn ghost block" id="vcClose">Close</button></div>
+        ${providers.openai.hasKey() ? '' : '<div class="muted" style="font-size:11px;">Tip: paste your OpenAI key in Profile → Settings to enable voice. Without a key the demo simulates the result.</div>'}
+      </div>
+    </div>`;
+  const el = document.createElement('div'); el.innerHTML = html; document.body.appendChild(el.firstElementChild);
+  document.getElementById('vcClose').onclick = () => { try { recorder?.stop(); } catch {} document.getElementById('vcOv').remove(); };
+
+  let recording = false;
+  document.getElementById('vcMic').onclick = async () => {
+    const out = document.getElementById('vcOut');
+    const mic = document.getElementById('vcMic');
+    if (!recording) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recorder = new MediaRecorder(stream); chunks = [];
+        recorder.ondataavailable = (e) => chunks.push(e.data);
+        recorder.onstop = async () => {
+          mic.classList.remove('recording'); mic.textContent = 'mic';
+          out.textContent = 'Transcribing…';
+          try {
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            let transcript;
+            if (providers.openai.hasKey()) {
+              const r = await providers.openai.transcribe(blob);
+              transcript = r.text || '';
+            } else {
+              await new Promise((r) => setTimeout(r, 800));
+              transcript = 'tomorrow morning 8 am garbage pickup';
+            }
+            out.innerHTML = `<b>You said:</b> ${transcript}`;
+            await new Promise((r) => setTimeout(r, 400));
+            let intent;
+            if (providers.openai.hasKey()) intent = await providers.openai.parseBookingIntent(transcript, services);
+            else intent = { serviceId: 'svc-garbage', confidence: 0.9, scheduleHint: 'tomorrow 8am' };
+            const svc = services.find((s) => s.id === intent.serviceId);
+            if (!svc) { out.innerHTML += '<br/><b>Couldn’t map to a service.</b>'; return; }
+            out.innerHTML += `<br/><b>Detected:</b> ${svc.name} · ${(intent.confidence*100|0)}% confidence`;
+            setTimeout(() => { document.getElementById('vcOv').remove(); openBookingSheet(svc); }, 700);
+          } catch (e) { out.innerHTML = '<span style="color:var(--danger);">' + e.message + '</span>'; }
+          stream.getTracks().forEach((t) => t.stop());
+        };
+        recorder.start();
+        mic.classList.add('recording'); mic.textContent = 'stop';
+        recording = true;
+        out.textContent = 'Listening… tap to stop';
+      } catch (e) { out.innerHTML = '<span style="color:var(--danger);">Microphone permission needed</span>'; }
+    } else {
+      recorder?.stop(); recording = false;
+    }
+  };
+}
+</script>
+</body>
+</html>

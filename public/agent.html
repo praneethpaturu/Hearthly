@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#14b8a6" />
+<title>Hearthly — Agent</title>
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/icon-180.png" />
+<link rel="stylesheet" href="/app.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Material+Symbols+Outlined" />
+<style>
+  /* Agent uses a teal accent variant of the brand */
+  .shell.agent .mark { background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); }
+  .shell.agent .spotlight { background: linear-gradient(135deg, #0f766e 0%, #1e40af 100%); box-shadow: 0 16px 32px -12px rgba(20,184,166,.45); }
+  .shell.agent .btn.cta { background: linear-gradient(135deg, #14b8a6 0%, #0e7490 100%); box-shadow: 0 8px 18px -6px rgba(14,165,233,.45); }
+  .shell.agent .bottom-nav a.active { color: #0f766e; }
+  .shell.agent .role-pill { background: #ccfbf1; color: #0f766e; }
+  .toggle-online {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; border-radius: 999px; background: #ecfdf5; color: #047857;
+    font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid #a7f3d0;
+  }
+  .toggle-online .dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 0 0 rgba(16,185,129,.55); animation: pulse 1.6s infinite; }
+  .toggle-online.off { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+  .toggle-online.off .dot { background: #ef4444; animation: none; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 0 20px; margin-bottom: 6px; }
+  .stat { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; text-align: center; }
+  .stat .v { font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+  .stat .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .task {
+    background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .task .head { display: flex; gap: 12px; align-items: flex-start; }
+  .task .ico { width: 44px; height: 44px; border-radius: 12px; background: #ccfbf1; color: #0f766e;
+               display: grid; place-items: center; font-family: "Material Symbols Outlined"; font-size: 24px; flex-shrink: 0; }
+  .task .meta { flex: 1; min-width: 0; }
+  .task .meta .t1 { font-weight: 700; font-size: 15px; }
+  .task .meta .t2 { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .task .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .task .actions .btn { flex: 1; }
+  .empty { text-align: center; color: var(--muted); padding: 32px 20px; }
+  .empty .ico { width: 64px; height: 64px; border-radius: 20px; background: var(--line-soft); color: var(--muted);
+                display: grid; place-items: center; margin: 0 auto 12px; font-family: "Material Symbols Outlined"; font-size: 32px; }
+</style>
+</head>
+<body>
+<div class="shell agent" id="shell"></div>
+
+<script src="/api.js"></script>
+<script src="/providers.js"></script>
+<script src="/ui.js"></script>
+<script src="/wow.js"></script>
+<script>
+const shell = document.getElementById('shell');
+let me, tasks = [], socket, online = true, locTimer = null;
+let activeTab = 'tasks';
+
+if (!api.token() || !api.user()) location.replace('/login.html');
+else if (api.user().role !== 'AGENT') location.replace('/login.html');
+else load();
+
+function renderAuth() {
+  shell.innerHTML = `
+    <div class="appbar">
+      <div class="brand"><div class="mark">delivery_dining</div><div class="name">Valet Agent</div></div>
+      <div class="spacer"></div>
+      <a href="/" class="icon-btn">close</a>
+    </div>
+    <div class="auth">
+      <div class="logo-big" style="background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%);">delivery_dining</div>
+      <h1>Sign in to start work</h1>
+      <div class="sub">OTP-based login. Demo agent number is pre-filled.</div>
+      <div class="field">
+        <label>Phone number</label>
+        <input id="phone" inputmode="tel" value="+919999900002" />
+      </div>
+      <div class="field" id="otpField" style="display:none;">
+        <label>OTP</label>
+        <input id="otp" inputmode="numeric" maxlength="6" />
+      </div>
+      <div class="field">
+        <button class="btn cta block" id="submit">Send OTP</button>
+      </div>
+      <div class="demo-acc">Demo: <code>+919999900002</code> &middot; OTP <code>123456</code></div>
+    </div>`;
+  let stage = 'phone';
+  document.getElementById('submit').onclick = async () => {
+    try {
+      if (stage === 'phone') {
+        const r = await api.http('POST', '/api/auth/otp/request', { phone: document.getElementById('phone').value });
+        document.getElementById('otpField').style.display = '';
+        document.getElementById('otp').value = r.demoOtp;
+        document.getElementById('submit').textContent = 'Verify & continue';
+        stage = 'otp';
+      } else {
+        const r = await api.http('POST', '/api/auth/otp/verify', {
+          phone: document.getElementById('phone').value,
+          otp: document.getElementById('otp').value,
+        });
+        api.setToken(r.token); api.setUser(r.user); location.reload();
+      }
+    } catch (e) { api.toast(e.message); }
+  };
+}
+
+async function load() {
+  me = await api.http('GET', '/api/me'); api.setUser(me);
+  setTimeout(() => wow.tour([
+    { emoji: '🚴', title: 'Welcome on board', body: 'You are KYC-verified and ready to take tasks. Stay Online to receive auto-assigned pickups.' },
+    { emoji: '📋', title: 'Your task flow', body: 'Each task: Start → Mark arrived → Scan RFID/QR → Complete with photo proof. Status syncs live.' },
+    { emoji: '🤖', title: 'AI verifies your work', body: 'Upload a photo when completing — AI confirms quality so you get rated fairly.' },
+    { emoji: '⭐', title: 'Earn tips & ratings', body: 'Polite agents earn higher ratings, recurring assignments, and bigger tips.' },
+  ], 'agent_v1'), 800);
+  tasks = await api.http('GET', '/api/orders');
+  socket = api.connectSocket();
+  socket?.on('order:new', (o) => { tasks.unshift(o); paint(); api.toast('New task: ' + (o.service?.name || '')); });
+  socket?.on('order:status', (o) => upsert(o));
+  paint();
+}
+
+function appbar() {
+  return `
+    <div class="appbar">
+      <div class="brand"><div class="mark">delivery_dining</div><div><div class="name">Valet Agent</div><div style="font-size:11px;color:var(--muted);">${me.name || me.phone}</div></div></div>
+      <div class="spacer"></div>
+      <button class="toggle-online ${online ? '' : 'off'}" id="onlineToggle"><span class="dot"></span>${online ? 'Online' : 'Offline'}</button>
+      <select id="lang" class="icon-btn" style="width:auto; padding:0 10px; font-family:inherit; font-size:12px; font-weight:600;">
+        <option value="EN" ${api.lang() === 'EN' ? 'selected' : ''}>EN</option>
+        <option value="HI" ${api.lang() === 'HI' ? 'selected' : ''}>हि</option>
+        <option value="TE" ${api.lang() === 'TE' ? 'selected' : ''}>తె</option>
+      </select>
+      ${ui.bell()}
+      <button class="icon-btn" id="logout">logout</button>
+    </div>`;
+}
+
+function bottomNav() {
+  const item = (id, label, icon) =>
+    `<a data-tab="${id}" class="${activeTab === id ? 'active' : ''}"><span class="ico">${icon}</span>${label}</a>`;
+  return `
+    <nav class="bottom-nav" style="grid-template-columns: repeat(3, 1fr);">
+      ${item('tasks',   'Tasks',     'list_alt')}
+      ${item('history', 'History',   'history')}
+      ${item('me',      'Me',        'account_circle')}
+    </nav>`;
+}
+
+function paint() {
+  shell.innerHTML = `
+    ${appbar()}
+    ${activeTab === 'tasks'   ? viewTasks()   : ''}
+    ${activeTab === 'history' ? viewHistory() : ''}
+    ${activeTab === 'me'      ? viewMe()      : ''}
+    ${bottomNav()}`;
+  document.getElementById('logout').onclick = api.logout;
+  document.getElementById('lang').onchange = (e) => api.setLang(e.target.value);
+  document.getElementById('onlineToggle').onclick = () => { online = !online; paint(); api.toast(online ? 'Now online' : 'Going offline'); };
+  shell.querySelectorAll('[data-tab]').forEach((el) => el.onclick = () => { activeTab = el.dataset.tab; paint(); });
+  if (activeTab === 'tasks') wireTasks();
+  ui.wireBell();
+}
+
+function viewTasks() {
+  const open = tasks.filter((o) => !['COMPLETED','CANCELLED'].includes(o.status));
+  const current = open[0];
+  const queue = open.slice(1);
+  const todayDone = tasks.filter((o) => o.status === 'COMPLETED' && o.completedAt?.slice(0,10) === new Date().toISOString().slice(0,10)).length;
+  const earnings = tasks.filter((o) => o.status === 'COMPLETED').reduce((s, o) => s + (o.amount || 0) * 0.6, 0); // 60% commission
+
+  return `
+    <div class="hero">
+      <div class="greeting">${greet()}, ${(me.name||'').split(' ')[0]} <span class="live"></span></div>
+      <h1>${api.t('tasks')}</h1>
+      <div class="sub">${open.length} open &middot; ${todayDone} completed today</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="v">${open.length}</div><div class="l">Open</div></div>
+      <div class="stat"><div class="v">${todayDone}</div><div class="l">Done today</div></div>
+      <div class="stat"><div class="v">${api.fmtINR(Math.round(earnings))}</div><div class="l">Earnings</div></div>
+    </div>
+
+    ${current ? `
+      <div class="section-title"><h3>Current task</h3></div>
+      <div class="section">${currentCard(current)}</div>
+    ` : `
+      <div class="empty">
+        <div class="ico">inbox</div>
+        <div style="font-weight:700; color: var(--ink);">All clear!</div>
+        <div style="margin-top:4px; font-size:13px;">No open tasks. Bins fill automatically — wait for an auto-assigned pickup, or have the resident book a service.</div>
+      </div>
+    `}
+
+    ${queue.length ? `
+      <div class="section-title"><h3>Up next (${queue.length})</h3></div>
+      <div class="order-list">${queue.map(taskRow).join('')}</div>
+    ` : ''}
+  `;
+}
+
+function currentCard(o) {
+  const where = o.flat?.label ? `Flat ${o.flat.label}` : (o.deviceId ? `Smart bin ${o.deviceId}` : 'Common area');
+  const auto = o.source === 'AUTO_BIN' ? '<span class="badge auto" style="margin-left:6px;">AUTO</span>' : '';
+  const stages = ['ASSIGNED','EN_ROUTE','ARRIVED','IN_PROGRESS'];
+  const idx = stages.indexOf(o.status);
+  return `
+    <div class="spotlight">
+      <div class="row">
+        <div class="ico">${o.service?.icon || 'cleaning_services'}</div>
+        <div class="meta">
+          <div class="t1">${o.service?.name} ${auto}</div>
+          <div class="t2">${where} &middot; ${api.fmtTime(o.scheduledAt)}</div>
+        </div>
+        <span class="pill">${o.status.replace('_',' ')}</span>
+      </div>
+      <div class="progress">
+        ${stages.map((_, i) => `<span class="${i <= idx ? 'on' : ''}"></span>`).join('')}
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px;">
+      ${o.notes ? `<div style="font-size:13px; color: var(--ink-2); margin-bottom: 10px;"><b>Note:</b> ${o.notes}</div>` : ''}
+      ${o.flat?.rfidTag ? `<div style="font-size:12px; color: var(--muted); margin-bottom: 10px;">Door RFID: <code style="background: var(--line-soft); padding: 2px 6px; border-radius: 6px;">${o.flat.rfidTag}</code></div>` : ''}
+      <div class="actions" style="display:flex; gap:8px; flex-wrap:wrap;">
+        ${actionButtons(o)}
+      </div>
+    </div>`;
+}
+
+function taskRow(o) {
+  const where = o.flat?.label ? `Flat ${o.flat.label}` : (o.deviceId ? `Bin ${o.deviceId}` : 'Common');
+  const auto = o.source === 'AUTO_BIN' ? '<span class="badge auto">AUTO</span>' : '';
+  return `
+    <div class="task">
+      <div class="head">
+        <div class="ico">${o.service?.icon || 'cleaning_services'}</div>
+        <div class="meta">
+          <div class="t1">${o.service?.name} ${auto}</div>
+          <div class="t2">${where} &middot; ${api.fmtTime(o.scheduledAt)}</div>
+        </div>
+        <span class="badge ${o.status.toLowerCase()}">${o.status.replace('_',' ')}</span>
+      </div>
+      <div class="actions">${actionButtons(o)}</div>
+    </div>`;
+}
+
+function actionButtons(o) {
+  switch (o.status) {
+    case 'ASSIGNED':
+      return `<button class="btn cta" data-act="start" data-id="${o.id}">${api.t('start')} &middot; ${o.service?.slaMins || ''}m</button>`;
+    case 'EN_ROUTE':
+      return `<button class="btn cta" data-act="arrive" data-id="${o.id}">${api.t('arrive')}</button>`;
+    case 'ARRIVED':
+      return `
+        <button class="btn cta" data-act="rfid" data-id="${o.id}">${api.t('scanRfid')}</button>
+        <button class="btn ghost" data-act="qr" data-id="${o.id}">${api.t('scanQr')}</button>`;
+    case 'IN_PROGRESS':
+      return `<button class="btn cta" data-act="complete" data-id="${o.id}">${api.t('complete')}</button>`;
+    default: return '';
+  }
+}
+
+function wireTasks() {
+  shell.querySelectorAll('[data-act]').forEach((b) => b.onclick = () => act(b.dataset.id, b.dataset.act));
+  // Tap the task body (not buttons) to open the detail sheet
+  shell.querySelectorAll('.task .head, .task .meta, #done .item').forEach((row) => {
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      const wrap = row.closest('[data-id]') || row.closest('.task') || row.closest('.item');
+      const id = wrap?.dataset?.id;
+      const o = tasks.find((t) => t.id === id);
+      if (o) ui.orderDetail(o);
+    });
+  });
+}
+
+async function act(id, action) {
+  const o = tasks.find((x) => x.id === id);
+  try {
+    let r;
+    if (action === 'start') {
+      r = await api.http('POST', `/api/agent/tasks/${id}/start`);
+      startLocStream(id);
+      api.toast('Started — sharing live location');
+    } else if (action === 'arrive') {
+      r = await api.http('POST', `/api/agent/tasks/${id}/arrive`);
+    } else if (action === 'rfid') {
+      const tag = o.flat?.rfidTag;
+      if (!tag) return api.toast('No RFID tag — use QR fallback');
+      r = await api.http('POST', `/api/agent/tasks/${id}/scan`, { type: 'RFID', code: tag });
+      api.toast('RFID verified');
+    } else if (action === 'qr') {
+      const code = await ui.prompt({ title: 'Scan QR', subtitle: 'Point camera at the door QR — or paste code', label: 'QR code', placeholder: 'QR-…', value: `QR-${id}`, cta: 'Verify' });
+      if (!code) return;
+      r = await api.http('POST', `/api/agent/tasks/${id}/scan`, { type: 'QR', code });
+    } else if (action === 'complete') {
+      const proof = await capturePhotoProof(o);
+      if (!proof) return;
+      r = await api.http('POST', `/api/agent/tasks/${id}/complete`);
+      // Persist proof + AI verification result on the order in localStorage.
+      const state = api._state();
+      const ord = state.orders.find((x) => x.id === id);
+      if (ord) {
+        ord.proofKey = proof.key;
+        ord.proofVerification = proof.verification;
+        try { localStorage.setItem('vl_state_v1', JSON.stringify(state)); } catch {}
+      }
+      stopLocStream();
+      providers.push.show('Service completed', `${o.service?.name} · ${proof.verification.passed ? 'AI verified ✓' : 'flagged for review'}`, { icon: 'task_alt' });
+    }
+    upsert(r);
+  } catch (e) { api.toast(e.message); }
+}
+
+function upsert(o) {
+  const i = tasks.findIndex((x) => x.id === o.id);
+  if (i >= 0) tasks[i] = o; else tasks.unshift(o);
+  paint();
+}
+
+function viewHistory() {
+  const done = tasks.filter((o) => ['COMPLETED','CANCELLED'].includes(o.status));
+  return `
+    <div class="hero"><h1>History</h1><div class="sub">${done.length} past tasks</div></div>
+    <div class="order-list">
+      ${done.length ? done.map(taskRow).join('') : '<div class="card muted">No past tasks yet.</div>'}
+    </div>`;
+}
+
+function viewMe() {
+  const completed = tasks.filter((o) => o.status === 'COMPLETED').length;
+  return `
+    <div class="hero"><h1>Profile</h1></div>
+    <div class="section">
+      <div class="card">
+        <div class="track-meta">
+          <div class="avatar" style="background: linear-gradient(135deg,#14b8a6,#0e7490);">${(me.name||'?').split(' ').map((s) => s[0]).slice(0,2).join('')}</div>
+          <div style="flex:1;">
+            <div style="font-weight:700;">${me.name} <span class="kyc-badge" style="margin-left:6px;">KYC by Digio</span></div>
+            <div style="font-size:12px; color: var(--muted);">${me.phone}</div>
+          </div>
+          <span class="badge in_progress">Agent</span>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
+          <div class="stat"><div class="v">${completed}</div><div class="l">Total tasks</div></div>
+          <div class="stat"><div class="v">4.9★</div><div class="l">Rating</div></div>
+        </div>
+        <div class="field" style="margin-top: 16px;">
+          <button class="btn ghost block" onclick="api.logout()">${api.t('logout')}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ─── Mock GPS stream ───────────────────────────────────────────────
+function startLocStream(orderId) {
+  stopLocStream();
+  const start = { lat: 12.9100, lng: 77.6000 };
+  const dest  = { lat: 12.9120, lng: 77.6035 };
+  let t = 0;
+  locTimer = setInterval(() => {
+    t = Math.min(1, t + 0.1);
+    const lat = start.lat + (dest.lat - start.lat) * t;
+    const lng = start.lng + (dest.lng - start.lng) * t;
+    const etaMin = Math.max(0, Math.round((1 - t) * 8));
+    socket?.emit('agent:location', { orderId, lat, lng, etaMin });
+    if (t >= 1) clearInterval(locTimer);
+  }, 1500);
+}
+function stopLocStream() { if (locTimer) { clearInterval(locTimer); locTimer = null; } }
+
+function greet() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+
+// ─── Photo proof capture + AI verification ───────────────────────────
+function capturePhotoProof(o) {
+  return new Promise((resolve) => {
+    const html = `
+      <div class="sheet-overlay open" id="ppOv">
+        <div class="sheet">
+          <div class="grip"></div>
+          <h3>Capture proof of service</h3>
+          <div class="desc">${o.service?.name} at ${o.flat?.label || (o.deviceId || '—')}</div>
+          <div class="field">
+            <label>Photo (camera or gallery)</label>
+            <input type="file" id="ppFile" accept="image/*" capture="environment" />
+          </div>
+          <div id="ppPreview"></div>
+          <div id="ppVerify" style="margin-top:10px;"></div>
+          <div class="field"><button class="btn cta block" id="ppOk" disabled>Verify &amp; complete</button></div>
+          <div class="field"><button class="btn ghost block" id="ppCancel">Cancel</button></div>
+        </div>
+      </div>`;
+    const el = document.createElement('div'); el.innerHTML = html; document.body.appendChild(el.firstElementChild);
+    let chosenFile = null;
+    document.getElementById('ppFile').onchange = async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      chosenFile = file;
+      const reader = new FileReader();
+      reader.onload = () => { document.getElementById('ppPreview').innerHTML = `<img class="proof-img" src="${reader.result}" />`; };
+      reader.readAsDataURL(file);
+      document.getElementById('ppOk').disabled = false;
+    };
+    document.getElementById('ppCancel').onclick = () => { document.getElementById('ppOv').remove(); resolve(null); };
+    document.getElementById('ppOk').onclick = async () => {
+      const btn = document.getElementById('ppOk'); btn.disabled = true; btn.textContent = 'Uploading…';
+      const key = `proof/${o.id}/${Date.now()}.jpg`;
+      const upload = await providers.storage.upload(chosenFile, key);
+      btn.textContent = 'AI verifying…';
+      let verification;
+      try {
+        if (providers.openai.hasKey()) {
+          verification = await providers.openai.verifyProof(o.service?.type || 'service', upload.url);
+        } else {
+          verification = await providers.ai.verifyProofPhoto(o.service?.type || 'service', upload.url);
+        }
+      } catch (e) { verification = await providers.ai.verifyProofPhoto(o.service?.type || 'service', upload.url); }
+      document.getElementById('ppVerify').innerHTML = `<div class="reco"><div class="ico">${verification.passed ? 'verified' : 'warning'}</div><div class="meta"><b>${verification.passed ? 'Verified' : 'Flagged'}</b> · ${(verification.confidence*100|0)}% confidence<div class="sub">${verification.notes} · ${verification.model}</div></div></div>`;
+      btn.textContent = 'Done';
+      setTimeout(() => { document.getElementById('ppOv').remove(); resolve({ key, verification }); }, 700);
+    };
+  });
+}
+</script>
+</body>
+</html>
