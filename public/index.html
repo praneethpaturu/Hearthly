@@ -27,7 +27,7 @@
         <p>Daily route, RFID/QR scan to confirm pickup, photo proof, complete with AI verification, attendance + welfare tracking.</p>
         <div class="creds"><code>+919999900002</code> &middot; OTP <code>123456</code></div>
       </a>
-      <a class="role r1" href="http://localhost:4040/citizen.html" target="_blank">
+      <a class="role r1" id="citizenLink" href="#" target="_blank">
         <div class="icon">groups</div>
         <h3>Citizen Portal &amp; App</h3>
         <p>Report a civic issue in 30s. Track grievance. Get welfare scheme alerts. Pay municipal bills. Multi-language (Telugu / Hindi / English / Urdu).</p>
@@ -39,11 +39,11 @@
         <p>Per-community / ward IoT health, grievance assignment, smart-bin status, anomaly alerts, complaints SLA.</p>
         <div class="creds"><code>+919999900003</code> &middot; OTP <code>123456</code></div>
       </a>
-      <a class="role r4" href="http://localhost:4040" target="_blank">
+      <a class="role r4" id="cmccLink" href="#" target="_blank">
         <div class="icon">hub</div>
         <h3>State Real-Time Governance Centre</h3>
         <p>NOC for the entire state. 6 ULBs · 600+ wards · live grievances · SBM compliance · worker welfare · disaster mgmt · CAG-ready reports.</p>
-        <div class="creds">Operator login · opens at <code>localhost:4040</code></div>
+        <div class="creds">Operator login · opens the CMCC console</div>
       </a>
     </div>
 
@@ -55,6 +55,32 @@
 </div>
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+
+// CMCC URL resolution. The mobile app and CMCC deploy as two separate
+// Vercel projects (Hobby tier requires it — Vercel can't run our MQTT
+// broker on a single project). Resolve the CMCC URL in this order:
+//   1. ?cmcc=<url> in this page's URL (handy for one-off overrides)
+//   2. localStorage['vl_cmcc_url'] (persists across sessions)
+//   3. window.HEARTHLY_CMCC_URL injected by Vercel via build env
+//   4. Same-origin /cmcc/ (single-project layout fallback)
+//   5. http://localhost:4040 (local dev)
+(function resolveCmccUrl() {
+  const params = new URLSearchParams(location.search);
+  const override = params.get('cmcc');
+  if (override) localStorage.setItem('vl_cmcc_url', override);
+  const stored = localStorage.getItem('vl_cmcc_url');
+  const envUrl = window.HEARTHLY_CMCC_URL;
+  let base;
+  if (stored) base = stored;
+  else if (envUrl) base = envUrl;
+  else if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') base = 'http://localhost:4040';
+  else base = location.origin + '/cmcc'; // single-domain fallback
+  base = base.replace(/\/$/, '');
+  const cmcc = document.getElementById('cmccLink');
+  const citizen = document.getElementById('citizenLink');
+  if (cmcc) cmcc.href = base + '/';
+  if (citizen) citizen.href = base + '/citizen.html';
+})();
 </script>
 </body>
 </html>

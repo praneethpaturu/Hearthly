@@ -360,7 +360,20 @@
     if (incidentBtn) incidentBtn.onclick = () => createIncidentSheet();
     const perCommBtn = document.getElementById('perCommBtn');
     if (perCommBtn) perCommBtn.onclick = () => {
-      window.open((window.MOBILE_URL || 'http://localhost:3030') + '/admin.html', '_blank');
+      // Resolve the mobile-app URL the same way the mobile resolves CMCC.
+      // Order: ?mobile=<url>, localStorage, window.HEARTHLY_MOBILE_URL,
+      // /admin.html on this origin, http://localhost:3030.
+      const params = new URLSearchParams(location.search);
+      const override = params.get('mobile');
+      if (override) localStorage.setItem('vl_mobile_url', override);
+      const stored = localStorage.getItem('vl_mobile_url');
+      const envUrl = window.HEARTHLY_MOBILE_URL;
+      let base;
+      if (stored) base = stored;
+      else if (envUrl) base = envUrl;
+      else if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') base = 'http://localhost:3030';
+      else base = location.origin.replace(/-cmcc(\.|$)/, '$1'); // sibling project guess
+      window.open(base.replace(/\/$/, '') + '/admin.html', '_blank');
     };
     const bellBtn = document.getElementById('bellBtn');
     const bellBadge = document.getElementById('bellBadge');

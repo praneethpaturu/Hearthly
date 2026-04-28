@@ -168,7 +168,7 @@ function paint() {
       ${ui.bell()}
       <button class="btn ghost sm" id="cmpQueue">Complaints</button>
       <button class="btn ghost sm" id="lbBtn">Leaderboard</button>
-      <a class="btn ghost sm" href="http://localhost:4040" target="_blank" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;">CMCC ↗</a>
+      <a class="btn ghost sm" id="cmccTopLink" href="#" target="_blank" style="text-decoration:none; display:inline-flex; align-items:center; gap:4px;">CMCC ↗</a>
       <div class="profile-wrap">
         <button class="avatar-btn" id="profileBtn" title="${me.name}" aria-label="Open profile menu">${(me.name || me.phone || '?').split(' ').map(s => s[0]).slice(0,2).join('')}</button>
         <div class="profile-menu" id="profileMenu">
@@ -177,7 +177,7 @@ function paint() {
             <div class="ph">${me.phone} · Admin</div>
           </div>
           <button id="pmTheme"><span class="ico">${(localStorage.getItem('vl_theme')||'light')==='dark' ? 'light_mode' : 'dark_mode'}</span> Toggle theme</button>
-          <a href="http://localhost:4040" target="_blank"><span class="ico">open_in_new</span> Open CMCC</a>
+          <a href="#" id="cmccMenuLink" target="_blank"><span class="ico">open_in_new</span> Open CMCC</a>
           <button id="pmAiKey"><span class="ico">key</span> OpenAI key</button>
           <button class="danger" id="pmLogout"><span class="ico">logout</span> Sign out</button>
         </div>
@@ -291,6 +291,18 @@ function paint() {
   paintAnomalies(); paintPm(); paintOta(); wireChat();
   ui.wireBell();
   document.getElementById('lang').onchange = (e) => api.setLang(e.target.value);
+  // Wire the two CMCC links to the resolved URL (see public/index.html).
+  const _cmccUrl = (() => {
+    const stored = localStorage.getItem('vl_cmcc_url');
+    if (stored) return stored.replace(/\/$/, '') + '/';
+    if (window.HEARTHLY_CMCC_URL) return window.HEARTHLY_CMCC_URL.replace(/\/$/, '') + '/';
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return 'http://localhost:4040/';
+    return location.origin + '/cmcc/';
+  })();
+  const _topLink = document.getElementById('cmccTopLink');
+  if (_topLink) _topLink.href = _cmccUrl;
+  const _menuLink = document.getElementById('cmccMenuLink');
+  if (_menuLink) _menuLink.href = _cmccUrl;
   document.getElementById('cmpQueue').onclick = () => ui.complaintQueue(orders);
   document.getElementById('lbBtn').onclick    = () => wow.leaderboard();
   // Profile dropdown

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "build": "echo 'static + serverless functions — no build step needed'"
   },
   "dependencies": {
     "cors": "^2.8.5",
