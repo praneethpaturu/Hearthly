@@ -1099,5 +1099,19 @@
 
   // ═══ Boot ═══════════════════════════════════════════════════════════
   window.addEventListener('hashchange', paint);
+  // Vercel Web Analytics pageview tracking for hash-routed SPA. The
+  // injected script only auto-tracks pushState/popstate, so on
+  // hashchange we manually fire a pageview event with the new hash as
+  // the path so each #overview, #anomalies, … counts as its own view.
+  function _trackPageview() {
+    if (typeof window.va === 'function') {
+      try {
+        window.va('event', { name: 'pageview', data: { url: location.href } });
+      } catch {}
+    }
+  }
+  window.addEventListener('hashchange', _trackPageview);
+  // Also fire once after the analytics script has had time to load.
+  setTimeout(_trackPageview, 1500);
   paint();
 })();
