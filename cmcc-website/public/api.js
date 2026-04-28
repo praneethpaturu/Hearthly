@@ -262,6 +262,140 @@ window.api = (() => {
     'Razorpay webhook signature mismatch': 'Razorpay वेबहुक सिग्नेचर मेल नहीं खाता',
     'Bin sensor battery <20%': 'बिन सेंसर बैटरी <20%',
     'Order volume +40% vs hourly avg': 'ऑर्डर मात्रा प्रति-घंटा औसत से +40%',
+
+    // ── Cities (Analytics city breakdown, communities subhead) ──
+    'Bangalore': 'बेंगलुरु',
+    'Hyderabad': 'हैदराबाद',
+    'Mumbai': 'मुंबई',
+    'Pune': 'पुणे',
+    'Delhi NCR': 'दिल्ली NCR',
+    'Chennai': 'चेन्नई',
+    'Kolkata': 'कोलकाता',
+    'Ahmedabad': 'अहमदाबाद',
+
+    // ── Services (Analytics revenue table, orders) ──
+    'Garbage': 'कचरा',
+    'Laundry': 'कपड़े धुलाई',
+    'Car Wash': 'कार वॉश',
+    'Grocery': 'किराना',
+    'Maintenance': 'रखरखाव',
+
+    // ── Compare view fields ──
+    'Flats': 'फ़्लैट',
+    'Orders today': 'आज के ऑर्डर',
+    'SLA %': 'SLA %',
+    'Revenue (₹)': 'राजस्व (₹)',
+    '— pick a community —': '— समुदाय चुनें —',
+    'Pick up to 3 — best/worst values highlighted': '3 तक चुनें — सर्वश्रेष्ठ/न्यूनतम मान हाइलाइट',
+
+    // ── Audit action codes ──
+    'ACK_ANOMALY': 'ACK_ANOMALY',  // shown as code badge — keep
+    'RESOLVE_ANOMALY': 'RESOLVE_ANOMALY',
+    'RESOLVE_ANOMALY_PB': 'RESOLVE_ANOMALY_PB',
+    'SCHEDULE_OTA': 'SCHEDULE_OTA',
+    'QUARANTINE_DEVICE': 'QUARANTINE_DEVICE',
+    'REASSIGN_ORDER': 'REASSIGN_ORDER',
+    'CREATE_INCIDENT': 'CREATE_INCIDENT',
+    'DPDP_EXPORT': 'DPDP_EXPORT',
+    'DPDP_DELETE': 'DPDP_DELETE',
+    'APPROVE_KYC': 'APPROVE_KYC',
+    'BLOCK_AGENT': 'BLOCK_AGENT',
+    'PRE_POSITION': 'PRE_POSITION',
+    'SCHEDULE_PRE_POSITION': 'SCHEDULE_PRE_POSITION',
+    'NOTIFY_MAINTENANCE': 'NOTIFY_MAINTENANCE',
+    'VISITOR_AUTO_APPROVE': 'VISITOR_AUTO_APPROVE',
+    'GENERATE_REPORT': 'GENERATE_REPORT',
+    'CONFIG_EDIT': 'CONFIG_EDIT',
+    'VIDEO_CALL_AGENT': 'VIDEO_CALL_AGENT',
+    'SCHEDULE_RECURRING': 'SCHEDULE_RECURRING',
+
+    // ── Operator names (Team page + Aria/audit) ──
+    'Priya Iyer': 'प्रिया अय्यर',
+    'Sandeep Rao': 'संदीप राव',
+    'Rakhi Menon': 'राखी मेनन',
+    'Faizan Ahmed': 'फ़ैज़ान अहमद',
+    'Akhila Reddy': 'अखिला रेड्डी',
+
+    // ── Agent first/last names (combined via pattern below) ──
+    'Ravi': 'रवि', 'Priya': 'प्रिया', 'Arjun': 'अर्जुन', 'Lakshmi': 'लक्ष्मी',
+    'Karthik': 'कार्तिक', 'Anita': 'अनीता', 'Vijay': 'विजय', 'Suresh': 'सुरेश',
+    'Meera': 'मीरा', 'Amit': 'अमित', 'Sunita': 'सुनीता', 'Manoj': 'मनोज',
+    'Kavya': 'काव्या', 'Rahul': 'राहुल', 'Pooja': 'पूजा', 'Deepak': 'दीपक',
+    'Asha': 'आशा', 'Ramesh': 'रमेश', 'Naveen': 'नवीन', 'Geeta': 'गीता',
+    'Sandeep': 'संदीप', 'Rakhi': 'राखी', 'Faizan': 'फ़ैज़ान', 'Akhila': 'अखिला',
+    'Iyer': 'अय्यर', 'Kumar': 'कुमार', 'Sharma': 'शर्मा', 'Reddy': 'रेड्डी',
+    'Singh': 'सिंह', 'Pillai': 'पिल्लई', 'Naidu': 'नायडू', 'Verma': 'वर्मा',
+    'Rao': 'राव', 'Khan': 'ख़ान', 'Patel': 'पटेल', 'Joshi': 'जोशी',
+    'Gupta': 'गुप्ता', 'Nair': 'नायर', 'Menon': 'मेनन', 'Das': 'दास',
+    'Ahmed': 'अहमद',
+
+    // ── Settings / Integrations descriptions ──
+    'Mee-Seva (T-App Folio)': 'मी-सेवा (T-App Folio)',
+    'T-Wallet': 'T-वॉलेट',
+    'TS-bPASS': 'TS-bPASS',
+    'SBM portal (MoHUA)': 'SBM पोर्टल (MoHUA)',
+    'NDMA SACHET': 'NDMA SACHET',
+    'CPCB air quality': 'CPCB वायु गुणवत्ता',
+    'Bhuvan GIS (NRSC)': 'Bhuvan GIS (NRSC)',
+    'PFMS (fund tracking)': 'PFMS (फ़ंड ट्रैकिंग)',
+    'GeM (procurement)': 'GeM (प्रोक्योरमेंट)',
+    'Aadhaar / DigiLocker': 'आधार / DigiLocker',
+    'RTI portal': 'RTI पोर्टल',
+    'MSG91 (SMS-DLT)': 'MSG91 (SMS-DLT)',
+    'WhatsApp Business': 'WhatsApp Business',
+    'Exotel (IVR + masked calls)': 'Exotel (IVR + मास्क्ड कॉल)',
+    'FCM push': 'FCM पुश',
+    'AWS S3 + CloudFront': 'AWS S3 + CloudFront',
+    'Digio (eKYC)': 'Digio (eKYC)',
+    'Google Maps': 'Google Maps',
+    'OpenAI': 'OpenAI',
+    '200+ services · 4587 centres': '200+ सेवाएँ · 4587 केंद्र',
+    'fee + scholarship + subsidy': 'फ़ीस + छात्रवृत्ति + सब्सिडी',
+    'building permits · self-certify': 'भवन परमिट · स्व-प्रमाणित',
+    'auto-feed star ratings': 'स्टार रेटिंग ऑटो-फ़ीड',
+    'early warning · all hazards': 'पूर्व चेतावनी · सभी ख़तरे',
+    '15-min refresh · all zones': '15 मिनट रिफ़्रेश · सभी ज़ोन',
+    'ward boundaries · WMS': 'वार्ड सीमाएँ · WMS',
+    'real-time utilisation': 'रियल-टाइम उपयोग',
+    'GFR-compliant': 'GFR-अनुपालित',
+    'AUA · KUA mode': 'AUA · KUA मोड',
+    '30-day SLA · 100% met': '30 दिन SLA · 100% पूर्ण',
+    '12 languages · 1.2 Cr/day': '12 भाषाएँ · 1.2 करोड़/दिन',
+    'citizen reports + alerts': 'नागरिक रिपोर्ट + अलर्ट',
+    'missed-call grievance': 'मिस्ड-कॉल शिकायत',
+    '4.2 L tokens': '4.2 लाख टोकन',
+    'Mumbai · MeitY-empanelled': 'मुंबई · MeitY-नियुक्त',
+    'swap when ready': 'तैयार होने पर बदलें',
+    'used by AI Insights & voice booking': 'AI इनसाइट्स और आवाज़-बुकिंग द्वारा उपयोग',
+
+    // ── Settings status badges ──
+    'connected': 'कनेक्टेड',
+    'verified': 'सत्यापित',
+    'live': 'लाइव',
+    'live feed': 'लाइव फ़ीड',
+    'synced': 'सिंक',
+    'automated': 'ऑटोमेटेड',
+    'UIDAI-licensed': 'UIDAI-लाइसेंसप्राप्त',
+    'demo (OSM)': 'डेमो (OSM)',
+    'mock': 'मॉक',
+    'ap-south-1': 'ap-south-1',
+    'healthy': 'स्वस्थ',
+    'tamper-evident': 'छेड़छाड़-स्पष्ट',
+
+    // ── Communities / Agents subhead bits ──
+    'orders online': 'ऑर्डर ऑनलाइन',
+    'Revenue today': 'आज का राजस्व',
+
+    // ── What-if simulation labels (CSS uppercase rendering) ──
+    'Rain probability': 'बारिश की संभावना',
+    'Hour of day': 'दिन का समय',
+    'Peak hours?': 'पीक घंटे?',
+    'Holiday weekend?': 'छुट्टी का सप्ताहांत?',
+    'Same hour & weather conditions over last 8 weeks — model "demand-fcst-v3"': 'पिछले 8 सप्ताह में समान घंटा और मौसम — मॉडल "demand-fcst-v3"',
+
+    // ── Audit log columns ──
+    'Hash': 'हैश',
+    'Tamper-evident · ap-south-1 · QLDB': 'छेड़छाड़-स्पष्ट · ap-south-1 · QLDB',
     'BIN_THEFT_SUSPECTED': 'बिन चोरी संदिग्ध',
     'GHOST_COMPLETION': 'घोस्ट पूर्णता',
     'AGENT_IDLE': 'एजेंट निष्क्रिय',
@@ -657,6 +791,77 @@ window.api = (() => {
     [/^(\d+) of (\d+)$/, '$1 / $2'],
     [/^(\d+) device(s)?$/, '$1 डिवाइस'],
     [/^(\d+) deliveries logged in last 30 days$/, 'पिछले 30 दिनों में $1 डिलीवरी'],
+    // First-name + Last-name pattern for the agents/team list. Each part
+    // is looked up in HI_DICT individually so we don't need to enumerate
+    // the 320 possible combinations.
+    [/^([A-Z][a-zA-Z']+) ([A-Z][a-zA-Z']+)$/, (m) => {
+      const f = HI_DICT[m[1]] || m[1];
+      const l = HI_DICT[m[2]] || m[2];
+      // If neither part is in dict, leave the original — we don't want
+      // to translate random English phrases that happen to be Title-Case.
+      if (f === m[1] && l === m[2]) return m[0];
+      return f + ' ' + l;
+    }],
+    // City + state + flats + agents (community card subhead)
+    [/^([A-Za-z][A-Za-z ]+), ([A-Z]{2}) · (\d+) flats · (\d+) agents online$/,
+      (m) => {
+        const city = HI_DICT[m[1]] || m[1];
+        return `${city}, ${m[2]} · ${m[3]} फ़्लैट · ${m[4]} एजेंट ऑनलाइन`;
+      }],
+    // Settings: "Synced 14m ago", "Synced 2h ago", "Synced 5d ago"
+    [/^Synced (\d+)([smhd]) ago$/, (m) => {
+      const u = ({ s: 'सेक', m: 'मि', h: 'घं', d: 'दिन' })[m[2]] || m[2];
+      return `${m[1]} ${u} पहले सिंक`;
+    }],
+    [/^synced (\d+)([smhd]) ago$/, (m) => {
+      const u = ({ s: 'सेक', m: 'मि', h: 'घं', d: 'दिन' })[m[2]] || m[2];
+      return `${m[1]} ${u} पहले सिंक`;
+    }],
+    // Settings tag: "X workers verified"
+    [/^(\d+) workers verified$/, '$1 कर्मचारी सत्यापित'],
+    // Compare KPI patterns (cards show "1,66,448" and percent etc — keep)
+    // Schedule for HH:MM button (sim view)
+    [/^Schedule for (\d{1,2}:\d{2})$/, '$1 के लिए शेड्यूल'],
+    // Pre-position suggestion (sim view)
+    [/^Pre-position (\d+) extra agent\(s\) in ([A-Za-z][A-Za-z ]+) by (\d{1,2}:\d{2})\. Push notify residents about expected (rain-driven|demand-driven) (laundry|service) demand\.$/,
+      (m) => {
+        const city = HI_DICT[m[2]] || m[2];
+        const driver = m[4] === 'rain-driven' ? 'बारिश-चालित' : 'माँग-चालित';
+        const svc = m[5] === 'laundry' ? 'लॉन्ड्री' : 'सेवा';
+        return `${city} में ${m[1]} अतिरिक्त एजेंट ${m[3]} तक पूर्व-तैनात करें। निवासियों को अपेक्षित ${driver} ${svc} माँग के बारे में सूचित करें।`;
+      }],
+    // Network is within capacity. Monitor.
+    [/^Network is within capacity\. Monitor\.$/, 'नेटवर्क क्षमता में है। निगरानी करें।'],
+    // Ticker events: "Community: anomaly text"
+    [/^([A-Za-z][A-Za-z' ]+): Bin sensor battery <20%$/,
+      (m) => `${HI_DICT[m[1]] || m[1]}: बिन सेंसर बैटरी <20%`],
+    [/^([A-Za-z][A-Za-z' ]+): Service exceeded 30 min SLA$/,
+      (m) => `${HI_DICT[m[1]] || m[1]}: सेवा ने 30 मिनट SLA पार किया`],
+    [/^([A-Za-z][A-Za-z' ]+): Agent idle 40\+ min during active shift$/,
+      (m) => `${HI_DICT[m[1]] || m[1]}: सक्रिय शिफ़्ट में एजेंट 40+ मिनट निष्क्रिय`],
+    [/^([A-Za-z][A-Za-z' ]+): Razorpay webhook signature mismatch$/,
+      (m) => `${HI_DICT[m[1]] || m[1]}: Razorpay वेबहुक सिग्नेचर मेल नहीं खाता`],
+    [/^([A-Za-z][A-Za-z' ]+): Order volume \+40% vs hourly avg$/,
+      (m) => `${HI_DICT[m[1]] || m[1]}: ऑर्डर मात्रा प्रति-घंटा औसत से +40%`],
+    [/^([A-Za-z][A-Za-z' ]+): Bin filled 22% → 95% in 4 minutes$/,
+      (m) => `${HI_DICT[m[1]] || m[1]}: बिन 22% → 95% तक 4 मिनट में भरा`],
+    [/^([A-Za-z][A-Za-z' ]+): Agent marked complete in 18s — no RFID scan$/,
+      (m) => `${HI_DICT[m[1]] || m[1]}: एजेंट ने 18 सेकंड में पूरा चिह्नित किया — कोई RFID स्कैन नहीं`],
+    [/^([A-Za-z][A-Za-z' ]+): Bin offline for 6\+ hours$/,
+      (m) => `${HI_DICT[m[1]] || m[1]}: बिन 6+ घंटे से ऑफ़लाइन`],
+    // Ticker: "Community: Service completed by Agent"
+    [/^([A-Za-z][A-Za-z' ]+): (Garbage|Laundry|Car Wash|Grocery|Maintenance) completed by ([A-Z][a-zA-Z' ]+)$/,
+      (m) => {
+        const comm = HI_DICT[m[1]] || m[1];
+        const svc  = HI_DICT[m[2]] || m[2];
+        // Re-run name pattern manually
+        const nameParts = m[3].split(' ');
+        const namedHi = nameParts.map((p) => HI_DICT[p] || p).join(' ');
+        return `${comm}: ${namedHi} ने ${svc} पूरी की`;
+      }],
+    // Ticker: "Bin XX (Community) at 95%"
+    [/^(Bin [A-Z]\d+) \(([A-Za-z][A-Za-z' ]+)\) at (\d+)%$/,
+      (m) => `${m[1]} (${HI_DICT[m[2]] || m[2]}) पर ${m[3]}%`],
     [/^Loaded saved view$/, 'सहेजा गया दृश्य लोड किया'],
     [/^Saves (\d+)s\/visit at gate · (\d+) deliveries\/month · est\. ₹([0-9,]+) in security time saved\.$/,
       'गेट पर प्रति-विज़िट $1 सेकंड बचत · $2 डिलीवरी/माह · अनुमानित ₹$3 सुरक्षा समय की बचत।'],
@@ -677,6 +882,12 @@ window.api = (() => {
     [/^(\d+) services completed by (.+)$/, '$2 ने $1 सेवाएँ पूरी कीं'],
   ];
 
+  function _applyPattern(re, hi, m, t0) {
+    if (typeof hi === 'function') return hi(m);
+    let out = hi;
+    for (let i = m.length - 1; i >= 1; i--) out = out.replace('$' + i, m[i]);
+    return out;
+  }
   function tr(text) {
     if (typeof text !== 'string' || lang() !== 'HI') return text;
     const t0 = text.trim();
@@ -684,11 +895,7 @@ window.api = (() => {
     if (HI_DICT[t0]) return text.replace(t0, HI_DICT[t0]);
     for (const [re, hi] of HI_PATTERNS) {
       const m = t0.match(re);
-      if (m) {
-        let out = hi;
-        for (let i = m.length - 1; i >= 1; i--) out = out.replace('$' + i, m[i]);
-        return text.replace(t0, out);
-      }
+      if (m) return text.replace(t0, _applyPattern(re, hi, m, t0));
     }
     return text;
   }
@@ -701,11 +908,7 @@ window.api = (() => {
     if (HI_DICT[t0]) return HI_DICT[t0];
     for (const [re, hi] of HI_PATTERNS) {
       const m = t0.match(re);
-      if (m) {
-        let out = hi;
-        for (let i = m.length - 1; i >= 1; i--) out = out.replace('$' + i, m[i]);
-        return out;
-      }
+      if (m) return _applyPattern(re, hi, m, t0);
     }
     return null;
   }
