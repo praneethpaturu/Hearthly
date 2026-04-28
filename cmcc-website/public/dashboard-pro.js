@@ -283,8 +283,13 @@ window.cmccPro = (() => {
     host.querySelector('#pbX').onclick = () => host.remove();
   }
 
-  // Inject "Playbook" button on every alert row when an alerts feed renders.
-  const feedObs = new MutationObserver(() => {
+  // Inject "Playbook" button on every alert row. The previous version
+  // ran a MutationObserver across document.body subtree, which fired
+  // on every DOM change (Leaflet tiles, ticker animations, etc.) and
+  // contributed to page-unresponsive lockups. Replaced with a 5 s tick
+  // that queries only `.alert:not([data-pbinjected])` once — fast and
+  // bounded.
+  function injectPlaybookButtons() {
     document.querySelectorAll('.alert:not([data-pbinjected])').forEach((row) => {
       row.setAttribute('data-pbinjected', '1');
       const acts = row.querySelector('.acts');
@@ -300,8 +305,8 @@ window.cmccPro = (() => {
       };
       acts.insertBefore(btn, acts.firstChild);
     });
-  });
-  feedObs.observe(document.body, { childList: true, subtree: true });
+  }
+  setInterval(injectPlaybookButtons, 5000);
 
   // ═══ Aria voice on the operator desk ═══════════════════════════════
   function injectVoiceButton() {
@@ -748,27 +753,12 @@ window.cmccPro = (() => {
   }
   setInterval(injectSentiment, 5000);
 
-  // ═══ Real-time collab cursors (mocked operators moving around) ═════
-  function spawnCollabCursors() {
-    const peers = [
-      { name: 'Sandeep R', color: '#a78bfa' },
-      { name: 'Rakhi M',   color: '#f59e0b' },
-    ];
-    peers.forEach((p, i) => {
-      const el = document.createElement('div');
-      el.className = 'collab-cursor';
-      el.style.color = p.color;
-      el.innerHTML = `<svg width="20" height="22" viewBox="0 0 20 22"><path d="M0 0 L0 18 L5 14 L8 22 L11 21 L8 13 L14 13 Z" fill="${p.color}" stroke="#fff" stroke-width="1"/></svg><span class="label" style="background:${p.color};">${p.name}</span>`;
-      el.style.top = (200 + i * 100) + 'px';
-      el.style.left = (300 + i * 200) + 'px';
-      document.body.appendChild(el);
-      setInterval(() => {
-        el.style.top  = (100 + Math.random() * (window.innerHeight - 200)) + 'px';
-        el.style.left = (100 + Math.random() * (window.innerWidth - 200)) + 'px';
-      }, 4000 + i * 1000);
-    });
-  }
-  setTimeout(spawnCollabCursors, 1500);
+  // ═══ Real-time collab cursors — DISABLED. They moved every 4s via a
+  // setInterval mutating inline styles. Combined with the i18n
+  // MutationObserver and the rest of the timers, they were eating
+  // enough main-thread budget on Hindi mode that Chrome flagged the
+  // tab "unresponsive". Re-enable later as a CSS-only animation.
+  function spawnCollabCursors() { /* no-op */ }
 
   // ═══ Mobile sidebar toggle ═════════════════════════════════════════
   function injectMobileToggle() {

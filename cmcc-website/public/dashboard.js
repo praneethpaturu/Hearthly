@@ -287,17 +287,15 @@
     finally { _polling = false; }
   }
   pollNetwork();
-  // Bumped from 10s → 30s. The polling caused repaint storms on Hindi
-  // mode (each repaint = full DOM rebuild + translateNode traversal),
-  // and the data rarely changes that fast in practice.
-  setInterval(async () => {
+  // Background refresh of NETWORK state ONLY — never auto-paint. Auto-
+  // paint of full views in Hindi mode caused the page-unresponsive bug
+  // even at 30-60s intervals (every paint = full DOM rebuild + i18n
+  // traversal + Leaflet teardown/re-init). The user sees fresh data on
+  // their next navigation or manual refresh, which is the right UX
+  // trade-off for a Hobby-tier deploy.
+  setInterval(() => {
     if (document.visibilityState !== 'visible') return;
-    await pollNetwork();
-    if (!LIVE_DATA_ROUTES.has(currentRoute())) return;
-    const sig = JSON.stringify((NETWORK.devices || []).map((d) => d.deviceId).sort());
-    if (sig === _lastNetworkSig) return;
-    _lastNetworkSig = sig;
-    paint();
+    pollNetwork();
   }, 30_000);
 
   // Listen for same-browser mobile mutations.
@@ -1082,25 +1080,21 @@
     };
   }
 
-  // Live updates — bumped from 12s → 60s and gated on visibility +
-  // overview-only paint. Repainting IoT/orders/anomalies on a 12s timer
-  // triggered translateNode flooding in Hindi mode (the original
-  // page-unresponsive bug). Data still mutates so the next manual
-  // navigation reflects fresh values.
+  // Live updates — mutate DATA in the background but DO NOT auto-paint.
+  // Was the second source of the page-unresponsive bug: even at 60s,
+  // a full overview repaint (KPIs + sparklines + Leaflet map + table)
+  // through the i18n translator combined with the polling loop blocked
+  // the main thread enough for Chrome to flag the tab. Saved data is
+  // visible on the user's next navigation or refresh.
   setInterval(() => {
     if (document.visibilityState !== 'visible') return;
     const candidate = DATA.orders.find((o) => ['ASSIGNED','EN_ROUTE','ARRIVED','IN_PROGRESS'].includes(o.status));
-    if (candidate) {
-      candidate.status = Math.random() > 0.3 ? 'COMPLETED' : 'IN_PROGRESS';
-    }
+    if (candidate) candidate.status = Math.random() > 0.3 ? 'COMPLETED' : 'IN_PROGRESS';
     DATA.devices.filter((d) => d.type === 'SMART_BIN').forEach((d) => {
       d.fillLevel = Math.min(100, (d.fillLevel || 0) + Math.random() * 4);
       d.lastSeen = Date.now();
     });
     saveData();
-    // Only repaint on the overview KPI card route (small DOM); skip the
-    // heavy iot/orders/anomalies tables — user can refresh manually.
-    if (currentRoute() === '' || currentRoute() === 'overview') paint();
   }, 60_000);
 
   // ═══ Boot ═══════════════════════════════════════════════════════════

@@ -754,28 +754,49 @@ window.api = (() => {
   }
   let _i18nObs = null;
   let _i18nPaused = false;
+  // Debounced batch processor. Without this, every Leaflet tile load,
+  // every Aria animation tick, every input keystroke fires the observer
+  // synchronously — which on Hindi mode meant translation lookups in
+  // the hot path of any DOM activity. The 150ms debounce coalesces all
+  // bursts into a single batch, processed lazily.
+  let _i18nQueue = [];
+  let _i18nFlushPending = false;
+  const I18N_QUEUE_LIMIT = 500; // safety cap
+  function _i18nFlush() {
+    _i18nFlushPending = false;
+    if (lang() !== 'HI' || _i18nPaused) { _i18nQueue.length = 0; return; }
+    const queue = _i18nQueue;
+    _i18nQueue = [];
+    for (const m of queue) {
+      if (m.type === 'childList') {
+        m.addedNodes.forEach((node) => translateNode(node));
+      } else if (m.type === 'characterData') {
+        const t0 = m.target.nodeValue?.trim();
+        const hi = t0 ? _hiResolve(t0) : null;
+        if (hi) m.target.nodeValue = m.target.nodeValue.replace(t0, hi);
+      } else if (m.type === 'attributes') {
+        const el = m.target;
+        const a = m.attributeName;
+        const v = el.getAttribute(a);
+        if (v) {
+          const tv = v.trim();
+          const hi = _hiResolve(tv);
+          if (hi) el.setAttribute(a, hi);
+        }
+      }
+    }
+  }
   function startI18nObserver() {
     if (_i18nObs || !document.body) return;
     _i18nObs = new MutationObserver((muts) => {
       if (_i18nPaused || lang() !== 'HI') return;
-      for (const m of muts) {
-        if (m.type === 'childList') {
-          m.addedNodes.forEach((node) => translateNode(node));
-        } else if (m.type === 'characterData') {
-          const t0 = m.target.nodeValue?.trim();
-          const hi = t0 ? _hiResolve(t0) : null;
-          if (hi) m.target.nodeValue = m.target.nodeValue.replace(t0, hi);
-        } else if (m.type === 'attributes') {
-          const el = m.target;
-          const a = m.attributeName;
-          const v = el.getAttribute(a);
-          if (v) {
-            const tv = v.trim();
-            const hi = _hiResolve(tv);
-            if (hi) el.setAttribute(a, hi);
-          }
-        }
-      }
+      // Cap the queue so a runaway burst (e.g. Leaflet zoom rendering
+      // a thousand tiles) can't grow memory unboundedly.
+      if (_i18nQueue.length >= I18N_QUEUE_LIMIT) return;
+      _i18nQueue.push(...muts);
+      if (_i18nFlushPending) return;
+      _i18nFlushPending = true;
+      setTimeout(_i18nFlush, 150);
     });
     _i18nObs.observe(document.body, {
       childList: true, subtree: true, characterData: true,

@@ -875,28 +875,45 @@ window.api = (() => {
   // Live observer — translates anything added/changed after initial paint.
   let _i18nObs = null;
   let _i18nPaused = false;
+  // Debounced batch processor — coalesce burst mutations (Leaflet
+  // tiles, animations, dynamic-island ticks) into a single 150ms-late
+  // pass so the observer never blocks the main thread on hot paths.
+  let _i18nQueue = [];
+  let _i18nFlushPending = false;
+  const I18N_QUEUE_LIMIT = 500;
+  function _i18nFlush() {
+    _i18nFlushPending = false;
+    if (lang() !== 'HI' || _i18nPaused) { _i18nQueue.length = 0; return; }
+    const queue = _i18nQueue;
+    _i18nQueue = [];
+    for (const m of queue) {
+      if (m.type === 'childList') {
+        m.addedNodes.forEach((node) => translateNode(node));
+      } else if (m.type === 'characterData') {
+        const t0 = m.target.nodeValue?.trim();
+        const hi = t0 ? _hiResolveMobile(t0) : null;
+        if (hi) m.target.nodeValue = m.target.nodeValue.replace(t0, hi);
+      } else if (m.type === 'attributes') {
+        const el = m.target;
+        const a = m.attributeName;
+        const v = el.getAttribute(a);
+        if (v) {
+          const tv = v.trim();
+          const hi = _hiResolveMobile(tv);
+          if (hi) el.setAttribute(a, hi);
+        }
+      }
+    }
+  }
   function startI18nObserver() {
     if (_i18nObs || !document.body) return;
     _i18nObs = new MutationObserver((muts) => {
       if (_i18nPaused || lang() !== 'HI') return;
-      for (const m of muts) {
-        if (m.type === 'childList') {
-          m.addedNodes.forEach((node) => translateNode(node));
-        } else if (m.type === 'characterData') {
-          const t0 = m.target.nodeValue?.trim();
-          const hi = t0 ? _hiResolveMobile(t0) : null;
-          if (hi) m.target.nodeValue = m.target.nodeValue.replace(t0, hi);
-        } else if (m.type === 'attributes') {
-          const el = m.target;
-          const a = m.attributeName;
-          const v = el.getAttribute(a);
-          if (v) {
-            const tv = v.trim();
-            const hi = _hiResolveMobile(tv);
-            if (hi) el.setAttribute(a, hi);
-          }
-        }
-      }
+      if (_i18nQueue.length >= I18N_QUEUE_LIMIT) return;
+      _i18nQueue.push(...muts);
+      if (_i18nFlushPending) return;
+      _i18nFlushPending = true;
+      setTimeout(_i18nFlush, 150);
     });
     _i18nObs.observe(document.body, {
       childList: true, subtree: true, characterData: true,
