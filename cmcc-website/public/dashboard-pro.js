@@ -315,7 +315,7 @@ window.cmccPro = (() => {
     const themeBtn = document.getElementById('themeToggle');
     top.insertBefore(b, themeBtn);
   }
-  setInterval(injectVoiceButton, 800);
+  setInterval(injectVoiceButton, 5000);
 
   async function voiceCommand() {
     const btn = document.getElementById('cmdVoice');
@@ -512,7 +512,7 @@ window.cmccPro = (() => {
       row.addEventListener('dragend', () => { row.style.opacity = '1'; });
     });
   }
-  setInterval(injectDragDrop, 800);
+  setInterval(injectDragDrop, 5000);
 
   // ═══ Bulk operations ═══════════════════════════════════════════════
   // Adds checkboxes to admin tables after they render, plus a floating
@@ -525,7 +525,7 @@ window.cmccPro = (() => {
   }
   let bulkBar = null;
   function hideBulkBar() { bulkBar?.remove(); bulkBar = null; }
-  setInterval(injectBulk, 1200);
+  setInterval(injectBulk, 5000);
 
   // ═══ PDF / printable daily digest ═════════════════════════════════
   function digestPdf() {
@@ -586,7 +586,7 @@ window.cmccPro = (() => {
     card.querySelector('#surgeAct').onclick = () => { audit('PRE_POSITION', '4 agents · Whitefield'); providers.push.show('Pre-positioning queued', '4 agents alerted in Whitefield', { icon: 'delivery_dining' }); };
     card.querySelector('#surgeSim').onclick = () => { location.hash = '#simulation'; };
   }
-  setInterval(injectSurgeCard, 1500);
+  setInterval(injectSurgeCard, 5000);
 
   // ─── Building-anomaly + visitor-pattern cards ───────────────────────
   function injectInsightCards() {
@@ -624,7 +624,7 @@ window.cmccPro = (() => {
     wrap.querySelector('#insApprove').onclick  = () => { audit('VISITOR_AUTO_APPROVE', 'Amazon · Mon-Wed 2-4pm'); providers.push.show('Auto-approve window saved', 'Amazon Mon–Wed 2–4 PM at Brigade Cosmopolis', { icon: 'qr_code_2' }); };
     wrap.querySelector('#insReview').onclick   = () => providers.push.show('Visitor history', '230 Amazon deliveries logged in last 30 days', { icon: 'history' });
   }
-  setInterval(injectInsightCards, 1500);
+  setInterval(injectInsightCards, 5000);
 
   // ─── Saved views in sidebar ─────────────────────────────────────────
   function injectSavedViews() {
@@ -650,7 +650,7 @@ window.cmccPro = (() => {
       side.insertBefore(a, operatorBlock);
     });
   }
-  setInterval(injectSavedViews, 1500);
+  setInterval(injectSavedViews, 5000);
 
   // ─── Live video call to agent (mock) ────────────────────────────────
   // Adds a "Video call agent" floating button when an in-progress
@@ -701,7 +701,7 @@ window.cmccPro = (() => {
     const themeBtn = document.getElementById('themeToggle');
     top.insertBefore(b, themeBtn);
   }
-  setInterval(injectNarratedBtn, 1000);
+  setInterval(injectNarratedBtn, 5000);
 
   async function playNarratedBriefing() {
     const data = JSON.parse(localStorage.getItem('vl_cmcc_seed') || '{}');
@@ -746,7 +746,7 @@ window.cmccPro = (() => {
       el.classList.add('sentiment-' + s);
     });
   }
-  setInterval(injectSentiment, 800);
+  setInterval(injectSentiment, 5000);
 
   // ═══ Real-time collab cursors (mocked operators moving around) ═════
   function spawnCollabCursors() {
@@ -780,7 +780,7 @@ window.cmccPro = (() => {
     top.insertBefore(b, top.firstChild);
     b.onclick = () => document.querySelector('.cmd-side')?.classList.toggle('open');
   }
-  setInterval(injectMobileToggle, 1000);
+  setInterval(injectMobileToggle, 5000);
 
   // ═══ Onboarding tour ═══════════════════════════════════════════════
   function maybeRunTour() {
@@ -905,7 +905,7 @@ window.cmccPro = (() => {
     const themeBtn = document.getElementById('themeToggle');
     top.insertBefore(b, themeBtn);
   }
-  setInterval(injectChangelogBtn, 1000);
+  setInterval(injectChangelogBtn, 5000);
 
   // ═══ Granular RBAC ═════════════════════════════════════════════════
   // Operators have an `opRole` field. SREs see Restart/Page buttons,
@@ -921,7 +921,7 @@ window.cmccPro = (() => {
       document.querySelectorAll('a[data-route="settings"]').forEach((a) => a.style.display = 'none');
     }
   }
-  setInterval(applyRbac, 800);
+  setInterval(applyRbac, 5000);
 
   // ═══ Webhooks-out (mocked — fires push when triggered) ═════════════
   function fireWebhook(event, payload) {
@@ -974,7 +974,7 @@ window.cmccPro = (() => {
     ops.parentElement.insertBefore(sim, ops.nextSibling);
     ops.parentElement.insertBefore(cmp, sim.nextSibling);
   }
-  setInterval(injectExtraNav, 1000);
+  setInterval(injectExtraNav, 5000);
 
   // ═══ Inline editing on Settings ═════════════════════════════════════
   function makeInlineEditable() {
@@ -991,7 +991,7 @@ window.cmccPro = (() => {
       };
     });
   }
-  setInterval(makeInlineEditable, 800);
+  setInterval(makeInlineEditable, 5000);
 
   return {
     openPalette, openPlaybook, voiceCommand, simulationView, compareView,

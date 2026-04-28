@@ -555,7 +555,7 @@ window.cmccMunicipal = (() => {
       side.insertBefore(a, operatorBlock);
     });
   }
-  setInterval(injectSidebar, 1000);
+  setInterval(injectSidebar, 5000);
 
   // Hashchange handler for municipal routes
   function maybeRender() {
@@ -575,14 +575,15 @@ window.cmccMunicipal = (() => {
   window.addEventListener('hashchange', maybeRender);
   if (MUNI_ROUTES[(location.hash || '').slice(1)]) setTimeout(maybeRender, 200);
 
-  // Reframe brand for Real-Time Governance · Telangana
+  // Reframe brand for Real-Time Governance · Telangana. Throttled to 5s
+  // (was 800ms) — the brand text is stable after the first paint.
   setInterval(() => {
     const t1 = document.querySelector('.cmd-side .brand .t1');
     const t2 = document.querySelector('.cmd-side .brand .t2');
     if (t1 && t1.textContent === 'Hearthly') t1.textContent = 'Hearthly Governance';
     if (t2 && t2.textContent === 'CMCC · LIVE') t2.textContent = 'TELANGANA · LIVE';
     document.title = 'Hearthly Governance · Telangana';
-  }, 800);
+  }, 5000);
 
   return { MUNI };
 })();

@@ -271,7 +271,12 @@
   // had to re-translate the whole subtree each paint).
   const LIVE_DATA_ROUTES = new Set(['', 'overview', 'iot', 'orders', 'anomalies', 'communities', 'agents']);
   let _lastNetworkSig = '';
+  let _polling = false;
   async function pollNetwork() {
+    // Single-flight: never overlap two fetches. Cold-start delays on
+    // Vercel functions could otherwise pile multiple in-flight requests.
+    if (_polling) return;
+    _polling = true;
     try {
       const r = await fetch('/api/cmcc/network', {
         headers: api.token() ? { Authorization: 'Bearer ' + api.token() } : {},
@@ -279,16 +284,21 @@
       if (!r.ok) return;
       NETWORK = await r.json();
     } catch { /* server unreachable, keep last */ }
+    finally { _polling = false; }
   }
   pollNetwork();
+  // Bumped from 10s → 30s. The polling caused repaint storms on Hindi
+  // mode (each repaint = full DOM rebuild + translateNode traversal),
+  // and the data rarely changes that fast in practice.
   setInterval(async () => {
+    if (document.visibilityState !== 'visible') return;
     await pollNetwork();
     if (!LIVE_DATA_ROUTES.has(currentRoute())) return;
     const sig = JSON.stringify((NETWORK.devices || []).map((d) => d.deviceId).sort());
     if (sig === _lastNetworkSig) return;
     _lastNetworkSig = sig;
     paint();
-  }, 10_000);
+  }, 30_000);
 
   // Listen for same-browser mobile mutations.
   window.addEventListener('storage', (e) => {
@@ -755,9 +765,9 @@
         <div class="cmd-card cmd-kpi"><div class="lbl">Need OTA</div><div class="val">${stale.length}</div></div>
       </div>
       <div class="cmd-card">
-        <h3>Smart bins by community</h3>
+        <h3>Smart bins by community ${bins.length > 48 ? `<span class="cmd-badge info" style="margin-left:6px;">showing 48 of ${bins.length}</span>` : ''}</h3>
         <div class="cmd-grid cols-4" id="binsGrid">
-          ${bins.map((b) => {
+          ${bins.slice(0, 48).map((b) => {
             const cls = b.fillLevel >= 80 ? 'critical' : b.fillLevel >= 60 ? 'warn' : '';
             return `<div class="dev-card ${cls}" data-dev="${b.id}">
               <div class="dr"><span>${b.community.split(' ').slice(0, 2).join(' ')}${b.mobileLinked ? ' 📱' : ''}</span><span>${b.fwVersion}${b.fwVersion === '1.4.2' ? ' ⚠' : ''}</span></div>
@@ -1072,9 +1082,13 @@
     };
   }
 
-  // Live updates — every 12s mutate seed state, rebuild current view ──
-  // Only mutates DATA (seed), never mobile-linked entries.
+  // Live updates — bumped from 12s → 60s and gated on visibility +
+  // overview-only paint. Repainting IoT/orders/anomalies on a 12s timer
+  // triggered translateNode flooding in Hindi mode (the original
+  // page-unresponsive bug). Data still mutates so the next manual
+  // navigation reflects fresh values.
   setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
     const candidate = DATA.orders.find((o) => ['ASSIGNED','EN_ROUTE','ARRIVED','IN_PROGRESS'].includes(o.status));
     if (candidate) {
       candidate.status = Math.random() > 0.3 ? 'COMPLETED' : 'IN_PROGRESS';
@@ -1084,9 +1098,10 @@
       d.lastSeen = Date.now();
     });
     saveData();
-    // Only repaint if user is on a live view
-    if (['', 'overview', 'iot', 'orders', 'anomalies'].includes(currentRoute())) paint();
-  }, 12000);
+    // Only repaint on the overview KPI card route (small DOM); skip the
+    // heavy iot/orders/anomalies tables — user can refresh manually.
+    if (currentRoute() === '' || currentRoute() === 'overview') paint();
+  }, 60_000);
 
   // ═══ Boot ═══════════════════════════════════════════════════════════
   window.addEventListener('hashchange', paint);

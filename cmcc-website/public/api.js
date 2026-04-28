@@ -253,6 +253,15 @@ window.api = (() => {
     'open': 'खुला',
     'acknowledged': 'स्वीकृत',
     'resolved': 'हल',
+    // Anomaly seed texts (hardcoded English in dashboard.js seed())
+    'Bin filled 22% → 95% in 4 minutes': 'बिन 22% → 95% तक 4 मिनट में भरा',
+    'Agent marked complete in 18s — no RFID scan': 'एजेंट ने 18 सेकंड में पूरा चिह्नित किया — कोई RFID स्कैन नहीं',
+    'Agent idle 40+ min during active shift': 'सक्रिय शिफ़्ट में एजेंट 40+ मिनट निष्क्रिय',
+    'Bin offline for 6+ hours': 'बिन 6+ घंटे से ऑफ़लाइन',
+    'Service exceeded 30 min SLA': 'सेवा ने 30 मिनट SLA पार किया',
+    'Razorpay webhook signature mismatch': 'Razorpay वेबहुक सिग्नेचर मेल नहीं खाता',
+    'Bin sensor battery <20%': 'बिन सेंसर बैटरी <20%',
+    'Order volume +40% vs hourly avg': 'ऑर्डर मात्रा प्रति-घंटा औसत से +40%',
     'BIN_THEFT_SUSPECTED': 'बिन चोरी संदिग्ध',
     'GHOST_COMPLETION': 'घोस्ट पूर्णता',
     'AGENT_IDLE': 'एजेंट निष्क्रिय',
@@ -653,6 +662,19 @@ window.api = (() => {
       'गेट पर प्रति-विज़िट $1 सेकंड बचत · $2 डिलीवरी/माह · अनुमानित ₹$3 सुरक्षा समय की बचत।'],
     [/^Pattern detected over (\d+) weeks · (\d+)% confidence · suggested: schedule extra Tuesday pickup OR notify maintenance team\.$/,
       'पैटर्न $1 सप्ताह में पहचाना गया · $2% विश्वास · सुझाव: मंगलवार को अतिरिक्त पिकअप शेड्यूल करें या मेंटेनेंस टीम को सूचित करें।'],
+    // Timestamp suffixes from fmtAgo()
+    [/^(\d+)s ago$/, '$1 सेक पहले'],
+    [/^(\d+)m ago$/, '$1 मि पहले'],
+    [/^(\d+)h ago$/, '$1 घं पहले'],
+    [/^(\d+)d ago$/, '$1 दिन पहले'],
+    // Anomaly status counts
+    [/^(\d+) open · (\d+) acknowledged · (\d+) resolved$/,
+      '$1 खुला · $2 स्वीकृत · $3 हल'],
+    // Per-card mini-cmcc badges
+    [/^showing (\d+) of (\d+)$/, '$2 में से $1 दिखा रहे हैं'],
+    [/^(\d+) online$/, '$1 ऑनलाइन'],
+    // Order log column data interpolations
+    [/^(\d+) services completed by (.+)$/, '$2 ने $1 सेवाएँ पूरी कीं'],
   ];
 
   function tr(text) {
