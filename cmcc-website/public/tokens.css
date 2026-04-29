@@ -1,0 +1,365 @@
+/* ============================================================
+ * Hearthly · Design Tokens
+ *
+ * Shared foundation for the type, color, spacing, radius, shadow
+ * and motion language. Loaded BEFORE the app-specific stylesheets
+ * (app.css, styles.css, command.css) so per-surface CSS can extend
+ * or override individual tokens cleanly.
+ *
+ * Naming convention is `--<category>-<role>` so tokens never
+ * collide with existing legacy tokens (--brand, --ink, --line, …)
+ * which still drive the current visual until later phases migrate
+ * consumers across.
+ *
+ * Phase 2 of the redesign: this file is INERT — no element here
+ * applies any rule directly. Selectors below only set custom
+ * properties. Visible UI is unchanged.
+ * ============================================================ */
+
+/* -------------- Typography ---------------------------------- */
+:root {
+  /* Font stacks. Inter ships from the existing Google Fonts link
+     in every HTML page, so we don't add a new network request.
+     Display falls back to a tighter system stack on systems where
+     Inter hasn't loaded yet. */
+  --font-display: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-text:    'Inter', -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Modular type scale (modular ratio ≈ 1.25, hand-tuned to common
+     pixel values). Use these everywhere instead of raw px. */
+  --text-2xs:  0.6875rem; /* 11px — micro labels, footnotes      */
+  --text-xs:   0.75rem;   /* 12px — meta, captions               */
+  --text-sm:   0.8125rem; /* 13px — secondary                    */
+  --text-base: 0.9375rem; /* 15px — body default                 */
+  --text-md:   1rem;      /* 16px — emphasised body              */
+  --text-lg:   1.125rem;  /* 18px — section title                */
+  --text-xl:   1.375rem;  /* 22px — card title                   */
+  --text-2xl:  1.75rem;   /* 28px — page title                   */
+  --text-3xl:  2.25rem;   /* 36px — feature title                */
+  --text-4xl:  3rem;      /* 48px — hero                         */
+  --text-5xl:  3.75rem;   /* 60px — landing display              */
+  --text-6xl:  4.75rem;   /* 76px — heroic display               */
+
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+  --weight-extrabold:800;
+
+  --leading-tight:   1.1;   /* display headlines */
+  --leading-snug:    1.25;  /* card titles */
+  --leading-normal:  1.5;   /* body */
+  --leading-relaxed: 1.65;  /* prose */
+
+  --tracking-tighter: -0.03em; /* large display */
+  --tracking-tight:   -0.015em;
+  --tracking-normal:  0;
+  --tracking-wide:    0.04em;  /* eyebrow / caps */
+  --tracking-wider:   0.08em;  /* small all-caps labels */
+}
+
+/* -------------- Color · Light (default) --------------------- */
+:root {
+  /* Background & surfaces — neutral, near-white, with subtle warm
+     undertone. Reserved space for elevation states. */
+  --color-bg:               #fafafb;
+  --color-surface:          #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-surface-sunken:   #f3f3f5;
+  --color-surface-inverse:  #0e0f12;
+
+  /* Text — restrained ramp, AAA on bg. */
+  --color-text:           #0c0d10;
+  --color-text-secondary: #36373c;
+  --color-text-muted:     #696a72;
+  --color-text-disabled:  #a3a4ab;
+  --color-text-on-accent: #ffffff;
+
+  /* Borders — low-opacity blacks read consistently against any
+     surface tint without locking us into a fixed colour. */
+  --color-border:        rgba(13, 14, 18, 0.08);
+  --color-border-strong: rgba(13, 14, 18, 0.16);
+  --color-divider:       rgba(13, 14, 18, 0.05);
+  --color-overlay:       rgba(13, 14, 18, 0.55);
+
+  /* Accent — single, confident hue. Per-surface accents below
+     re-target this so the rest of the system follows along. */
+  --color-accent:           #4f46e5;
+  --color-accent-hover:     #4338ca;
+  --color-accent-pressed:   #3730a3;
+  --color-accent-soft:      rgba(79, 70, 229, 0.08);
+  --color-accent-stroke:    rgba(79, 70, 229, 0.20);
+  --color-accent-text:      var(--color-text-on-accent);
+
+  /* Semantic — earned, not loud. */
+  --color-success:       #0e8a3e;
+  --color-success-soft:  rgba(14, 138, 62, 0.10);
+  --color-success-text:  #064e25;
+
+  --color-warning:       #b45309;
+  --color-warning-soft:  rgba(180, 83, 9, 0.12);
+  --color-warning-text:  #6b340a;
+
+  --color-danger:        #b91c1c;
+  --color-danger-soft:   rgba(185, 28, 28, 0.10);
+  --color-danger-text:   #7a1414;
+
+  --color-info:          #1e4ed8;
+  --color-info-soft:     rgba(30, 78, 216, 0.08);
+  --color-info-text:     #1e3a8a;
+
+  /* Decorative chart palette — keep small + cohesive. */
+  --color-chart-1: #4f46e5;
+  --color-chart-2: #0d9488;
+  --color-chart-3: #b45309;
+  --color-chart-4: #be185d;
+  --color-chart-5: #475569;
+}
+
+/* -------------- Color · Dark -------------------------------- */
+[data-theme="dark"] {
+  --color-bg:               #07080a;
+  --color-surface:          #101115;
+  --color-surface-elevated: #16171c;
+  --color-surface-sunken:   #0b0c0f;
+  --color-surface-inverse:  #fafafb;
+
+  --color-text:           #f6f6f8;
+  --color-text-secondary: #c2c3cb;
+  --color-text-muted:     #82838c;
+  --color-text-disabled:  #4f5058;
+  --color-text-on-accent: #ffffff;
+
+  --color-border:        rgba(255, 255, 255, 0.10);
+  --color-border-strong: rgba(255, 255, 255, 0.18);
+  --color-divider:       rgba(255, 255, 255, 0.06);
+  --color-overlay:       rgba(0, 0, 0, 0.65);
+
+  --color-accent:           #818cf8;
+  --color-accent-hover:     #6366f1;
+  --color-accent-pressed:   #4f46e5;
+  --color-accent-soft:      rgba(129, 140, 248, 0.14);
+  --color-accent-stroke:    rgba(129, 140, 248, 0.28);
+
+  --color-success:       #34d399;
+  --color-success-soft:  rgba(52, 211, 153, 0.14);
+  --color-success-text:  #d1fae5;
+
+  --color-warning:       #fbbf24;
+  --color-warning-soft:  rgba(251, 191, 36, 0.14);
+  --color-warning-text:  #fef3c7;
+
+  --color-danger:        #f87171;
+  --color-danger-soft:   rgba(248, 113, 113, 0.14);
+  --color-danger-text:   #fee2e2;
+
+  --color-info:          #60a5fa;
+  --color-info-soft:     rgba(96, 165, 250, 0.14);
+  --color-info-text:     #dbeafe;
+
+  --color-chart-1: #818cf8;
+  --color-chart-2: #2dd4bf;
+  --color-chart-3: #fbbf24;
+  --color-chart-4: #f472b6;
+  --color-chart-5: #94a3b8;
+}
+
+/* -------------- Per-surface accent overlays ----------------- *
+ * Surface scope is opt-in via [data-surface="…"] on a wrapper.
+ * Phase 3 will add these attributes to the right roots; Phase 2
+ * just defines the targets so nothing visible changes yet.
+ * ----------------------------------------------------------- */
+[data-surface="resident"] {
+  --color-accent:         #4f46e5;
+  --color-accent-hover:   #4338ca;
+  --color-accent-pressed: #3730a3;
+  --color-accent-soft:    rgba(79, 70, 229, 0.08);
+  --color-accent-stroke:  rgba(79, 70, 229, 0.22);
+}
+[data-surface="agent"] {
+  --color-accent:         #0d9488;
+  --color-accent-hover:   #0f766e;
+  --color-accent-pressed: #115e59;
+  --color-accent-soft:    rgba(13, 148, 136, 0.10);
+  --color-accent-stroke:  rgba(13, 148, 136, 0.24);
+}
+[data-surface="admin"] {
+  --color-accent:         #1e293b;
+  --color-accent-hover:   #0f172a;
+  --color-accent-pressed: #020617;
+  --color-accent-soft:    rgba(30, 41, 59, 0.06);
+  --color-accent-stroke:  rgba(30, 41, 59, 0.24);
+}
+[data-surface="operator"] {
+  /* CMCC operator console — calm slate-blue, amber for warnings */
+  --color-accent:         #2563eb;
+  --color-accent-hover:   #1d4ed8;
+  --color-accent-pressed: #1e40af;
+  --color-accent-soft:    rgba(37, 99, 235, 0.10);
+  --color-accent-stroke:  rgba(37, 99, 235, 0.26);
+}
+[data-surface="citizen"] {
+  /* Telangana citizen portal — warm amber on neutral */
+  --color-accent:         #b45309;
+  --color-accent-hover:   #92400e;
+  --color-accent-pressed: #78350f;
+  --color-accent-soft:    rgba(180, 83, 9, 0.10);
+  --color-accent-stroke:  rgba(180, 83, 9, 0.26);
+}
+
+/* -------------- Spacing scale (4px base) -------------------- */
+:root {
+  --space-0:  0;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-7:  28px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-14: 56px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+  --space-40: 160px;
+}
+
+/* -------------- Radii --------------------------------------- */
+:root {
+  --radius-xs:   4px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   20px;
+  --radius-2xl:  28px;
+  --radius-3xl:  36px;
+  --radius-full: 999px;
+}
+
+/* -------------- Shadows (layered, restrained) --------------- */
+:root {
+  /* Subtle 1px pseudo-stroke for things that need separation
+     without a real shadow. */
+  --shadow-xs: 0 0 0 1px var(--color-border);
+
+  /* Resting card: floats just enough to be tactile. */
+  --shadow-sm: 0 1px 2px rgba(13, 14, 18, 0.04),
+               0 1px 3px rgba(13, 14, 18, 0.06);
+
+  /* Hover or focused card. */
+  --shadow-md: 0 1px 2px rgba(13, 14, 18, 0.04),
+               0 6px 12px -4px rgba(13, 14, 18, 0.10),
+               0 0 0 1px var(--color-border);
+
+  /* Modals, popovers, command palette. */
+  --shadow-lg: 0 1px 3px rgba(13, 14, 18, 0.05),
+               0 14px 28px -8px rgba(13, 14, 18, 0.14),
+               0 24px 60px -12px rgba(13, 14, 18, 0.18),
+               0 0 0 1px var(--color-border);
+
+  /* Floating action / dynamic island. */
+  --shadow-xl: 0 1px 3px rgba(13, 14, 18, 0.06),
+               0 24px 48px -12px rgba(13, 14, 18, 0.22),
+               0 36px 72px -18px rgba(13, 14, 18, 0.24);
+
+  /* a11y focus ring — uses two layers so it works on any bg. */
+  --shadow-focus:      0 0 0 2px var(--color-bg),
+                       0 0 0 4px var(--color-accent);
+  --shadow-focus-soft: 0 0 0 4px var(--color-accent-soft);
+}
+[data-theme="dark"] {
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.50),
+               0 1px 3px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.40),
+               0 6px 12px -4px rgba(0, 0, 0, 0.55),
+               0 0 0 1px var(--color-border);
+  --shadow-lg: 0 1px 3px rgba(0, 0, 0, 0.45),
+               0 14px 28px -8px rgba(0, 0, 0, 0.55),
+               0 24px 60px -12px rgba(0, 0, 0, 0.65),
+               0 0 0 1px var(--color-border);
+  --shadow-xl: 0 1px 3px rgba(0, 0, 0, 0.50),
+               0 24px 48px -12px rgba(0, 0, 0, 0.65),
+               0 36px 72px -18px rgba(0, 0, 0, 0.70);
+}
+
+/* -------------- Motion -------------------------------------- */
+:root {
+  --motion-instant: 0ms;
+  --motion-short:   120ms;
+  --motion-medium:  240ms;
+  --motion-long:    400ms;
+  --motion-page:    320ms;
+
+  --ease-linear: linear;
+  --ease-out:    cubic-bezier(.16, 1, .3, 1);     /* gentle decel */
+  --ease-in:     cubic-bezier(.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(.4, 0, .2, 1);
+  --ease-spring: cubic-bezier(.34, 1.56, .64, 1); /* slight overshoot */
+}
+
+/* Honour reduced-motion. Belt-and-braces: cap our motion tokens
+   AND short-circuit any rule that uses raw durations elsewhere. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-short:  0ms;
+    --motion-medium: 0ms;
+    --motion-long:   0ms;
+    --motion-page:   0ms;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* -------------- Z-index scale ------------------------------- */
+:root {
+  --z-base:    1;
+  --z-sticky:  10;
+  --z-popover: 50;
+  --z-overlay: 100;
+  --z-modal:   200;
+  --z-toast:   300;
+  --z-tooltip: 400;
+}
+
+/* -------------- Layout containers --------------------------- */
+:root {
+  --container-xs:  448px;  /* phone */
+  --container-sm:  640px;
+  --container-md:  768px;
+  --container-lg:  1024px;
+  --container-xl:  1280px;
+  --container-2xl: 1536px;
+  --container-content: 720px; /* readable measure */
+}
+
+/* -------------- Density scope ------------------------------- */
+[data-density="compact"]     { --space-content: var(--space-3); }
+[data-density="comfortable"] { --space-content: var(--space-4); }
+[data-density="cozy"]        { --space-content: var(--space-6); }
+:root                        { --space-content: var(--space-4); }
+
+/* -------------- Focus ring utility (declarative only) ------ *
+ * The rule is declared but not applied to anything — Phase 3
+ * adds the .focus-ring class and the :where() selector to the
+ * primitives that should opt in. Keeping Phase 2 strictly
+ * non-visual: no element on a current page is selected here.
+ *
+ * Reference for Phase 3:
+ *   .focus-ring:focus-visible,
+ *   :where(button, a, [role="button"], input, select, textarea)
+ *     :focus-visible {
+ *     outline: none;
+ *     box-shadow: var(--shadow-focus);
+ *   }
+ * ----------------------------------------------------------- */
