@@ -304,15 +304,16 @@ window.cmccMunicipal = (() => {
           </table>
         </div>
         <div class="cmd-card">
-          <h3>Auto-reported to portals</h3>
+          <h3>Auto-reported to portals <span class="cmd-badge mute" style="margin-left: 8px;">design-ready · demo</span></h3>
+          <p style="color: var(--muted); font-size: 12px; margin-top: 0;">Report formats and cadences below are <b>designed to match</b> each programme's published spec. No live partner connections in this build — values shown are illustrative.</p>
           <table class="cmd-table">
-            <tr><td><b>SBM Portal (MoHUA)</b></td><td>Daily</td><td><span class="cmd-badge ok">Synced 14m ago</span></td></tr>
-            <tr><td><b>Swachh Survekshan</b></td><td>Live</td><td><span class="cmd-badge ok">Live</span></td></tr>
-            <tr><td><b>AMRUT 2.0 dashboard</b></td><td>Weekly</td><td><span class="cmd-badge ok">Synced</span></td></tr>
-            <tr><td><b>Smart Cities Mission</b></td><td>Monthly</td><td><span class="cmd-badge ok">Synced</span></td></tr>
-            <tr><td><b>NITI Aayog SDG dashboard</b></td><td>Quarterly</td><td><span class="cmd-badge ok">SDG 6, 11, 12</span></td></tr>
-            <tr><td><b>CAG audit trail</b></td><td>On-demand</td><td><span class="cmd-badge ok">Tamper-evident</span></td></tr>
-            <tr><td><b>RTI compliance</b></td><td>30-day SLA</td><td><span class="cmd-badge ok">100%</span></td></tr>
+            <tr><td><b>SBM Portal (MoHUA)</b></td><td>Daily</td><td><span class="cmd-badge mute">mock</span></td></tr>
+            <tr><td><b>Swachh Survekshan</b></td><td>Live</td><td><span class="cmd-badge mute">mock</span></td></tr>
+            <tr><td><b>AMRUT 2.0 dashboard</b></td><td>Weekly</td><td><span class="cmd-badge mute">mock</span></td></tr>
+            <tr><td><b>Smart Cities Mission</b></td><td>Monthly</td><td><span class="cmd-badge mute">mock</span></td></tr>
+            <tr><td><b>NITI Aayog SDG dashboard</b></td><td>Quarterly</td><td><span class="cmd-badge mute">SDG 6, 11, 12 (mock)</span></td></tr>
+            <tr><td><b>CAG audit trail</b></td><td>On-demand</td><td><span class="cmd-badge mute">tamper-evident · design</span></td></tr>
+            <tr><td><b>RTI compliance</b></td><td>30-day SLA</td><td><span class="cmd-badge mute">workflow only</span></td></tr>
           </table>
         </div>
       </div>
@@ -351,14 +352,14 @@ window.cmccMunicipal = (() => {
       </div>
       <div class="cmd-grid cols-2">
         <div class="cmd-card">
-          <h3>Welfare schemes coverage</h3>
+          <h3>Welfare schemes coverage <span class="cmd-badge mute" style="margin-left: 8px;">simulated</span></h3>
           <table class="cmd-table">
             <tr><td><b>PMSBY (insurance ₹2L)</b></td><td>${w.length - noIns}/${w.length}</td><td>${Math.round((1-noIns/w.length)*100)}%</td></tr>
-            <tr><td><b>Aasara pension eligible</b></td><td>14</td><td><span class="cmd-badge ok">enrolled</span></td></tr>
+            <tr><td><b>Aasara pension eligible</b></td><td>14</td><td><span class="cmd-badge mute">mock</span></td></tr>
             <tr><td><b>Arogyasri health card</b></td><td>${w.length}/${w.length}</td><td>100%</td></tr>
             <tr><td><b>Safety kit issued</b></td><td>${w.length - noKit}/${w.length}</td><td>${Math.round((1-noKit/w.length)*100)}%</td></tr>
-            <tr><td><b>2BHK housing scheme</b></td><td>9 allotted</td><td><span class="cmd-badge ok">live</span></td></tr>
-            <tr><td><b>KCR Kit (maternity)</b></td><td>3 distributed</td><td><span class="cmd-badge ok">delivered</span></td></tr>
+            <tr><td><b>2BHK housing scheme</b></td><td>9 allotted</td><td><span class="cmd-badge mute">mock</span></td></tr>
+            <tr><td><b>KCR Kit (maternity)</b></td><td>3 distributed</td><td><span class="cmd-badge mute">mock</span></td></tr>
             <tr><td><b>T-SAT skill training</b></td><td>${w.filter((x) => x.skill_courses > 0).length}/${w.length}</td><td>${Math.round(w.filter((x) => x.skill_courses > 0).length/w.length*100)}%</td></tr>
           </table>
         </div>
@@ -415,8 +416,11 @@ window.cmccMunicipal = (() => {
       const div = document.createElement('div');
       div.style.cssText = 'position:absolute; inset:0;';
       el.appendChild(div);
-      const m = L.map(div, { zoomControl: true, attributionControl: false }).setView([22.0, 78.0], 5);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', { subdomains: 'abcd', maxZoom: 18 }).addTo(m);
+      const m = L.map(div, { zoomControl: true, attributionControl: true }).setView([22.0, 78.0], 5);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+        subdomains: 'abcd', maxZoom: 18,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      }).addTo(m);
       MUNI.wards.forEach((w) => {
         const c = MUNI.cities.find((x) => x.id === w.cityId);
         if (!c) return;

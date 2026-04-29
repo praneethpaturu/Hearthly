@@ -1,0 +1,47 @@
+Hearthly
+Copyright 2026 Hearthly contributors
+
+This product includes software developed by:
+
+- Express.js (https://expressjs.com/) — MIT License
+- Socket.IO (https://socket.io/) — MIT License
+- Aedes MQTT broker (https://github.com/moscajs/aedes) — MIT License
+- MQTT.js (https://github.com/mqttjs/MQTT.js) — MIT License
+- nanoid (https://github.com/ai/nanoid) — MIT License
+- jsonwebtoken (https://github.com/auth0/node-jsonwebtoken) — MIT License
+- @supabase/supabase-js (https://github.com/supabase/supabase-js) — MIT License
+- cors (https://github.com/expressjs/cors) — MIT License
+
+This product references third-party services and programmes by name for
+descriptive purposes only. No affiliation with, endorsement by, or
+certification from any of the following is implied:
+
+- Government of India, Government of Telangana, or any state / municipal body
+- Unique Identification Authority of India (UIDAI) — "Aadhaar"
+- Ministry of Housing and Urban Affairs (MoHUA) — "Swachh Bharat Mission",
+  "AMRUT", "Smart Cities Mission", "Swachh Survekshan"
+- NITI Aayog
+- Comptroller and Auditor General of India (CAG)
+- Telangana eGov Authority — "Mee-Seva", "T-App Folio", "T-Wallet", "TS-bPASS"
+- Greater Hyderabad Municipal Corporation (GHMC)
+- Bruhat Bengaluru Mahanagara Palike (BBMP)
+- Razorpay, MSG91, Exotel, Digio, Bhuvan / NRSC, NDMA, CPCB, FCM, WhatsApp,
+  GPay, PhonePe, Paytm, BHIM, RuPay, UPI, OpenAI, Supabase, Vercel, Amazon
+  Web Services, Google Maps, OpenStreetMap, CARTO
+
+All sample data, persons, phone numbers, and addresses shown in this
+application are synthetic and for demonstration only.
+
+Map tile attribution:
+- OpenStreetMap (https://www.openstreetmap.org/copyright) — Open Database
+  License (ODbL)
+- CARTO basemaps (https://carto.com/attributions) — Free for non-commercial
+  use; commercial deployments require a CARTO licence.
+
+Fonts:
+- Inter (https://rsms.me/inter/) — SIL Open Font License 1.1
+- Material Symbols Outlined (https://fonts.google.com/icons) — Apache
+  License 2.0
+
+The icon `icon.svg` is an original work of authorship by the Hearthly
+contributors and is licensed under the Apache License 2.0.

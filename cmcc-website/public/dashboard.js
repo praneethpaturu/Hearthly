@@ -647,8 +647,11 @@
     const div = document.createElement('div');
     div.style.cssText = 'position:absolute; inset:0;';
     container.appendChild(div);
-    const m = L.map(div, { zoomControl: false, attributionControl: false }).setView([22.0, 79.0], 5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', { subdomains: 'abcd', maxZoom: 18 }).addTo(m);
+    const m = L.map(div, { zoomControl: false, attributionControl: true }).setView([22.0, 79.0], 5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+      subdomains: 'abcd', maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    }).addTo(m);
     LIVE.communities.forEach((c) => {
       const color = c.anomalies > 0 ? '#ef4444' : c.status === 'WARN' ? '#f59e0b' : '#10b981';
       const r = 6 + Math.min(8, c.ordersToday / 10);
@@ -1027,28 +1030,29 @@
       <div><h2>Settings</h2></div>
       <div class="cmd-grid cols-2">
         <div class="cmd-card">
-          <h3>Integrations</h3>
+          <h3>Integrations <span class="cmd-badge mute" style="margin-left: 8px;">design-ready · demo</span></h3>
+          <p style="color: var(--muted); font-size: 12px; margin-top: 0;">All third-party / government integrations below are <b>mocked for demonstration</b>. None imply a current contract, certification, or live data feed. Adapter contracts are documented and ready to wire once partner agreements are signed.</p>
           <table class="cmd-table">
             <tr><td><b>Telangana eGov stack</b></td><td colspan="2" style="color: var(--muted);">───────────</td></tr>
-            <tr><td>Mee-Seva (T-App Folio)</td><td><span class="cmd-badge ok">connected</span></td><td>200+ services · 4587 centres</td></tr>
-            <tr><td>T-Wallet</td><td><span class="cmd-badge ok">connected</span></td><td>fee + scholarship + subsidy</td></tr>
-            <tr><td>TS-bPASS</td><td><span class="cmd-badge ok">connected</span></td><td>building permits · self-certify</td></tr>
-            <tr><td>SBM portal (MoHUA)</td><td><span class="cmd-badge ok">synced 14m ago</span></td><td>auto-feed star ratings</td></tr>
-            <tr><td>NDMA SACHET</td><td><span class="cmd-badge ok">live feed</span></td><td>early warning · all hazards</td></tr>
-            <tr><td>CPCB air quality</td><td><span class="cmd-badge ok">live</span></td><td>15-min refresh · all zones</td></tr>
-            <tr><td>Bhuvan GIS (NRSC)</td><td><span class="cmd-badge ok">connected</span></td><td>ward boundaries · WMS</td></tr>
-            <tr><td>PFMS (fund tracking)</td><td><span class="cmd-badge ok">connected</span></td><td>real-time utilisation</td></tr>
-            <tr><td>GeM (procurement)</td><td><span class="cmd-badge ok">connected</span></td><td>GFR-compliant</td></tr>
-            <tr><td>Aadhaar / DigiLocker</td><td><span class="cmd-badge ok">UIDAI-licensed</span></td><td>AUA · KUA mode</td></tr>
-            <tr><td>RTI portal</td><td><span class="cmd-badge ok">automated</span></td><td>30-day SLA · 100% met</td></tr>
+            <tr><td>Mee-Seva (T-App Folio)</td><td><span class="cmd-badge mute">mock</span></td><td>adapter ready · 200+ services target</td></tr>
+            <tr><td>T-Wallet</td><td><span class="cmd-badge mute">mock</span></td><td>fee + scholarship + subsidy</td></tr>
+            <tr><td>TS-bPASS</td><td><span class="cmd-badge mute">mock</span></td><td>building permits · self-certify</td></tr>
+            <tr><td>SBM portal (MoHUA)</td><td><span class="cmd-badge mute">mock</span></td><td>star-rating feed format defined</td></tr>
+            <tr><td>NDMA SACHET</td><td><span class="cmd-badge mute">mock</span></td><td>early warning · all hazards</td></tr>
+            <tr><td>CPCB air quality</td><td><span class="cmd-badge mute">mock</span></td><td>15-min refresh planned</td></tr>
+            <tr><td>Bhuvan GIS (NRSC)</td><td><span class="cmd-badge mute">mock</span></td><td>ward boundaries · WMS</td></tr>
+            <tr><td>PFMS (fund tracking)</td><td><span class="cmd-badge mute">mock</span></td><td>real-time utilisation</td></tr>
+            <tr><td>GeM (procurement)</td><td><span class="cmd-badge mute">mock</span></td><td>GFR-compliant target</td></tr>
+            <tr><td>Aadhaar / DigiLocker</td><td><span class="cmd-badge mute">mock</span></td><td>AUA / KUA design — requires UIDAI approval</td></tr>
+            <tr><td>RTI portal</td><td><span class="cmd-badge mute">mock</span></td><td>30-day SLA workflow</td></tr>
             <tr><td><b>Communication channels</b></td><td colspan="2" style="color: var(--muted);">───────────</td></tr>
-            <tr><td>MSG91 (SMS-DLT)</td><td><span class="cmd-badge ok">connected</span></td><td>12 languages · 1.2 Cr/day</td></tr>
-            <tr><td>WhatsApp Business</td><td><span class="cmd-badge ok">verified</span></td><td>citizen reports + alerts</td></tr>
-            <tr><td>Exotel (IVR + masked calls)</td><td><span class="cmd-badge ok">connected</span></td><td>missed-call grievance</td></tr>
-            <tr><td>FCM push</td><td><span class="cmd-badge ok">connected</span></td><td>4.2 L tokens</td></tr>
+            <tr><td>MSG91 (SMS-DLT)</td><td><span class="cmd-badge mute">mock</span></td><td>12 languages target</td></tr>
+            <tr><td>WhatsApp Business</td><td><span class="cmd-badge mute">mock</span></td><td>citizen reports + alerts</td></tr>
+            <tr><td>Exotel (IVR + masked calls)</td><td><span class="cmd-badge mute">mock</span></td><td>missed-call grievance</td></tr>
+            <tr><td>FCM push</td><td><span class="cmd-badge mute">mock</span></td><td>token registry stubbed</td></tr>
             <tr><td><b>Storage + AI</b></td><td colspan="2" style="color: var(--muted);">───────────</td></tr>
-            <tr><td>AWS S3 + CloudFront</td><td><span class="cmd-badge ok">ap-south-1</span></td><td>Mumbai · MeitY-empanelled</td></tr>
-            <tr><td>Digio (eKYC)</td><td><span class="cmd-badge ok">connected</span></td><td>${LIVE.agents.filter((a) => a.kyc === 'VERIFIED').length} workers verified</td></tr>
+            <tr><td>AWS S3 + CloudFront</td><td><span class="cmd-badge mute">design</span></td><td>ap-south-1 target region</td></tr>
+            <tr><td>Digio (eKYC)</td><td><span class="cmd-badge mute">mock</span></td><td>${LIVE.agents.filter((a) => a.kyc === 'VERIFIED').length} simulated workers verified</td></tr>
             <tr><td>Google Maps</td><td><span class="cmd-badge mute">demo (OSM)</span></td><td>swap when ready</td></tr>
             <tr><td>OpenAI</td><td><span class="cmd-badge ${providers.openai.hasKey() ? 'ok' : 'mute'}">${providers.openai.hasKey() ? 'connected' : 'mock'}</span></td><td>used by AI Insights & voice booking</td></tr>
           </table>

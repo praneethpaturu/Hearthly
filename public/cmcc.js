@@ -519,8 +519,11 @@
     const div = document.createElement('div');
     div.style.cssText = 'position:absolute; inset:0;';
     container.appendChild(div);
-    const m = L.map(div, { zoomControl: false, attributionControl: false }).setView([22.0, 79.0], 5);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', { subdomains: 'abcd', maxZoom: 18 }).addTo(m);
+    const m = L.map(div, { zoomControl: false, attributionControl: true }).setView([22.0, 79.0], 5);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+      subdomains: 'abcd', maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    }).addTo(m);
     LIVE.communities.forEach((c) => {
       const color = c.anomalies > 0 ? '#ef4444' : c.status === 'WARN' ? '#f59e0b' : '#10b981';
       const r = 6 + Math.min(8, c.ordersToday / 10);
@@ -899,14 +902,15 @@
       <div><h2>Settings</h2></div>
       <div class="cmd-grid cols-2">
         <div class="cmd-card">
-          <h3>Integrations</h3>
+          <h3>Integrations <span class="cmd-badge mute" style="margin-left: 8px;">demo</span></h3>
+          <p style="color: var(--muted); font-size: 12px; margin-top: 0;">All third-party integrations below are <b>mocked for demonstration</b> — no live partner contracts implied. Adapter contracts are ready to wire on signing.</p>
           <table class="cmd-table">
-            <tr><td>MSG91 (SMS)</td><td><span class="cmd-badge ok">connected</span></td><td>DLT-approved · 3 templates</td></tr>
-            <tr><td>Razorpay (UPI)</td><td><span class="cmd-badge ok">connected</span></td><td>webhooks armed</td></tr>
-            <tr><td>AWS S3 (media)</td><td><span class="cmd-badge ok">connected</span></td><td>ap-south-1</td></tr>
-            <tr><td>Exotel (calls)</td><td><span class="cmd-badge ok">connected</span></td><td>virtual number masking</td></tr>
-            <tr><td>FCM (push)</td><td><span class="cmd-badge ok">connected</span></td><td>4.2k tokens</td></tr>
-            <tr><td>Digio (KYC)</td><td><span class="cmd-badge ok">connected</span></td><td>${LIVE.agents.filter((a) => a.kyc === 'VERIFIED').length} verified</td></tr>
+            <tr><td>MSG91 (SMS)</td><td><span class="cmd-badge mute">mock</span></td><td>DLT-template structure defined</td></tr>
+            <tr><td>Razorpay (UPI)</td><td><span class="cmd-badge mute">mock</span></td><td>webhook signature verifier stubbed</td></tr>
+            <tr><td>AWS S3 (media)</td><td><span class="cmd-badge mute">design</span></td><td>ap-south-1 target</td></tr>
+            <tr><td>Exotel (calls)</td><td><span class="cmd-badge mute">mock</span></td><td>virtual number masking</td></tr>
+            <tr><td>FCM (push)</td><td><span class="cmd-badge mute">mock</span></td><td>token registry stubbed</td></tr>
+            <tr><td>Digio (KYC)</td><td><span class="cmd-badge mute">mock</span></td><td>${LIVE.agents.filter((a) => a.kyc === 'VERIFIED').length} simulated verifications</td></tr>
             <tr><td>Google Maps</td><td><span class="cmd-badge mute">demo (OSM)</span></td><td>swap when ready</td></tr>
             <tr><td>OpenAI</td><td><span class="cmd-badge ${providers.openai.hasKey() ? 'ok' : 'mute'}">${providers.openai.hasKey() ? 'connected' : 'mock'}</span></td><td>used by AI Insights & voice booking</td></tr>
           </table>

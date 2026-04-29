@@ -70,12 +70,13 @@ window.ui = (() => {
     });
 
     const map = L.map(container.querySelector('#cmLeaflet'), {
-      attributionControl: false, zoomControl: false, dragging: false,
+      attributionControl: true, zoomControl: false, dragging: false,
       doubleClickZoom: false, scrollWheelZoom: false, touchZoom: false, keyboard: false,
     }).setView(dest, 16);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19, minZoom: 5, subdomains: 'abc',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(map);
 
     const homeMarker  = L.marker(dest,  { icon: icon('#f59e0b', 'home') }).addTo(map);

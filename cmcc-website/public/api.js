@@ -364,7 +364,7 @@ window.api = (() => {
     'citizen reports + alerts': 'नागरिक रिपोर्ट + अलर्ट',
     'missed-call grievance': 'मिस्ड-कॉल शिकायत',
     '4.2 L tokens': '4.2 लाख टोकन',
-    'Mumbai · MeitY-empanelled': 'मुंबई · MeitY-नियुक्त',
+    'ap-south-1 target region': 'ap-south-1 लक्ष्य क्षेत्र',
     'swap when ready': 'तैयार होने पर बदलें',
     'used by AI Insights & voice booking': 'AI इनसाइट्स और आवाज़-बुकिंग द्वारा उपयोग',
 
@@ -375,7 +375,8 @@ window.api = (() => {
     'live feed': 'लाइव फ़ीड',
     'synced': 'सिंक',
     'automated': 'ऑटोमेटेड',
-    'UIDAI-licensed': 'UIDAI-लाइसेंसप्राप्त',
+    'design': 'डिज़ाइन',
+    'design-ready · demo': 'डिज़ाइन-तैयार · डेमो',
     'demo (OSM)': 'डेमो (OSM)',
     'mock': 'मॉक',
     'ap-south-1': 'ap-south-1',
@@ -697,10 +698,11 @@ window.api = (() => {
     'Saved to Downloads · audit logged': 'डाउनलोड में सहेजी · ऑडिट लॉग की',
 
     // Citizen portal
-    '🇮🇳 भारत सरकार · Government of Telangana': '🇮🇳 भारत सरकार · तेलंगाना सरकार',
+    'DEMO · Independent prototype · Not affiliated with any government body': 'डेमो · स्वतंत्र प्रोटोटाइप · किसी सरकारी निकाय से संबद्ध नहीं',
+    'Synthetic data · Live preview': 'सिंथेटिक डेटा · लाइव प्रीव्यू',
     'Real-Time Governance · Live': 'रियल-टाइम गवर्नेंस · लाइव',
     'Telangana Citizen Portal': 'तेलंगाना नागरिक पोर्टल',
-    'Mee-Seva enabled · Aadhaar / DigiLocker login': 'मी-सेवा सक्षम · आधार / DigiLocker लॉगिन',
+    'DEMO · designed for Mee-Seva / Aadhaar / DigiLocker integration': 'डेमो · मी-सेवा / आधार / DigiLocker एकीकरण के लिए डिज़ाइन किया गया',
     'Track grievance': 'शिकायत ट्रैक करें',
     'Schemes': 'योजनाएँ',
     'Open data': 'ओपन डेटा',
