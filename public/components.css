@@ -2486,3 +2486,391 @@ button.card:active:not(:disabled),
     margin-left: 0;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Phase 4.4 · Resident home redesign
+ *
+ * Editorial layout, single indigo accent, generous breathing room. The
+ * legacy app.css rules already give us a serviceable structure; this
+ * block strips the stickier "consumer-app maximalism" — heavy gradients,
+ * tight pill chrome — in favour of confident type and quiet surfaces.
+ * Scoped to body[data-surface="resident"] so it never leaks to other
+ * surfaces.
+ *
+ * No structure / class names are changed — pure visual override.
+ * ───────────────────────────────────────────────────────────────────── */
+
+body[data-surface="resident"] {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Appbar — quiet, less branded chrome ----------------------------- */
+body[data-surface="resident"] .appbar {
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  backdrop-filter: saturate(140%) blur(14px);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: none;
+}
+body[data-surface="resident"] .appbar .mark {
+  background: var(--color-accent);
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  box-shadow: none;
+  display: grid;
+  place-items: center;
+  font-family: 'Material Symbols Outlined';
+  font-size: 18px;
+  font-variation-settings: 'FILL' 0, 'wght' 500, 'opsz' 24;
+}
+body[data-surface="resident"] .appbar .brand .name {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-md);
+  letter-spacing: -0.01em;
+}
+body[data-surface="resident"] .appbar .icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-md);
+  width: 36px;
+  height: 36px;
+}
+body[data-surface="resident"] .appbar .icon-btn:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+/* Hero — display headline + restrained meta ----------------------- */
+body[data-surface="resident"] .hero {
+  padding: var(--space-7) var(--space-4) var(--space-4);
+  background: transparent;
+  color: inherit;
+  border-radius: 0;
+  box-shadow: none;
+}
+body[data-surface="resident"] .hero .greeting {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-3);
+}
+body[data-surface="resident"] .hero .greeting .live::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  margin-left: var(--space-2);
+  vertical-align: middle;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+body[data-surface="resident"] .hero h1 {
+  font-size: clamp(28px, 6vw, 40px);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 0;
+  color: var(--color-text);
+}
+body[data-surface="resident"] .hero .sub {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+body[data-surface="resident"] .hero .sub b {
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+
+/* Section titles — typographic, no chrome ------------------------- */
+body[data-surface="resident"] .section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--space-6) var(--space-4) var(--space-2);
+  border: 0;
+}
+body[data-surface="resident"] .section-title h3 {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+body[data-surface="resident"] .section-title a {
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+  text-decoration: none;
+  cursor: pointer;
+}
+body[data-surface="resident"] .section-title a:hover {
+  text-decoration: underline;
+}
+
+body[data-surface="resident"] .section {
+  padding: 0 var(--space-4);
+}
+
+/* Spotlight (active service card) — restrained accent ------------- */
+body[data-surface="resident"] .spotlight {
+  background: linear-gradient(180deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
+  color: #fff;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-accent) 24%, transparent);
+  border: 0;
+  margin: 0 var(--space-4) var(--space-4);
+}
+body[data-surface="resident"] .spotlight::after {
+  display: none;
+}
+body[data-surface="resident"] .spotlight .ico {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border-radius: var(--radius-md);
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+}
+body[data-surface="resident"] .spotlight .meta .t1 {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-md);
+}
+body[data-surface="resident"] .spotlight .meta .t2 {
+  font-size: var(--text-xs);
+  opacity: 0.82;
+}
+body[data-surface="resident"] .spotlight .pill {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+body[data-surface="resident"] .spotlight .progress {
+  margin-top: var(--space-3);
+  display: flex;
+  gap: 6px;
+}
+body[data-surface="resident"] .spotlight .progress span {
+  height: 4px;
+  flex: 1;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+}
+body[data-surface="resident"] .spotlight .progress span.on {
+  background: #fff;
+}
+
+/* Wallet card + ESG card — flat, hairline, content-first ---------- */
+body[data-surface="resident"] .wallet-card,
+body[data-surface="resident"] #esgSlot > * {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: none;
+  color: var(--color-text);
+}
+body[data-surface="resident"] .wallet-card .lbl {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-semibold);
+}
+body[data-surface="resident"] .wallet-card .bal {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  margin-top: var(--space-2);
+  color: var(--color-text);
+}
+body[data-surface="resident"] .wallet-card .row {
+  margin-top: var(--space-3);
+  display: flex;
+  gap: var(--space-2);
+}
+body[data-surface="resident"] .wallet-card .row button {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+body[data-surface="resident"] .wallet-card .row button:hover {
+  border-color: var(--color-accent-stroke);
+  color: var(--color-accent);
+}
+
+/* Service grid — typographic tiles, accent on hover --------------- */
+body[data-surface="resident"] .svc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+}
+body[data-surface="resident"] .svc {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: none;
+  transition: border-color var(--motion-fast) var(--ease-standard),
+              transform var(--motion-fast) var(--ease-standard);
+}
+body[data-surface="resident"] .svc:hover,
+body[data-surface="resident"] .svc:focus-visible {
+  border-color: var(--color-accent-stroke);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  outline: none;
+}
+body[data-surface="resident"] .svc .ico {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  display: grid;
+  place-items: center;
+  font-family: 'Material Symbols Outlined';
+  font-size: 20px;
+  font-variation-settings: 'FILL' 0, 'wght' 500, 'opsz' 24;
+  margin-bottom: var(--space-3);
+}
+/* Override the c1..c5 colour variants — same accent everywhere now */
+body[data-surface="resident"] .svc.c1 .ico,
+body[data-surface="resident"] .svc.c2 .ico,
+body[data-surface="resident"] .svc.c3 .ico,
+body[data-surface="resident"] .svc.c4 .ico,
+body[data-surface="resident"] .svc.c5 .ico {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+body[data-surface="resident"] .svc .name {
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  margin-bottom: var(--space-1);
+}
+body[data-surface="resident"] .svc .price {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+body[data-surface="resident"] .svc .price b {
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+body[data-surface="resident"] .svc .coalition {
+  display: inline-block;
+  margin-top: var(--space-2);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* Order list rows — flat hairline cards --------------------------- */
+body[data-surface="resident"] .order-list {
+  padding: 0 var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+body[data-surface="resident"] .order {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  box-shadow: none;
+}
+body[data-surface="resident"] .order:hover {
+  border-color: var(--color-accent-stroke);
+}
+
+/* Bottom nav — minimal, accent active state ----------------------- */
+body[data-surface="resident"] .bottom-nav {
+  background: color-mix(in srgb, var(--color-bg) 90%, transparent);
+  backdrop-filter: saturate(140%) blur(14px);
+  -webkit-backdrop-filter: saturate(140%) blur(14px);
+  border-top: 1px solid var(--color-border);
+  box-shadow: none;
+  padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));
+}
+body[data-surface="resident"] .bottom-nav a {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-2xs);
+}
+body[data-surface="resident"] .bottom-nav a.active {
+  color: var(--color-accent);
+}
+body[data-surface="resident"] .bottom-nav a.active .ico {
+  font-variation-settings: 'FILL' 1, 'wght' 600, 'opsz' 24;
+}
+
+/* FAB — rounder, single accent, gentler shadow -------------------- */
+body[data-surface="resident"] .fab {
+  background: var(--color-accent);
+  color: #fff;
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--color-accent) 30%, transparent);
+  border: 0;
+}
+body[data-surface="resident"] .fab:hover {
+  background: var(--color-accent-hover);
+  transform: translateY(-1px);
+}
+
+/* Section padding for the home view's anonymous wrappers ---------- */
+body[data-surface="resident"] #recoSlot,
+body[data-surface="resident"] #usualSlot {
+  padding: 0 var(--space-4);
+}
+
+/* Quick-action chip row ------------------------------------------- */
+body[data-surface="resident"] .btn.ghost.sm {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-standard),
+              color var(--motion-fast) var(--ease-standard);
+}
+body[data-surface="resident"] .btn.ghost.sm:hover {
+  border-color: var(--color-accent-stroke);
+  color: var(--color-accent);
+}
+
+/* Reduced motion — kill subtle hover lifts */
+@media (prefers-reduced-motion: reduce) {
+  body[data-surface="resident"] .svc:hover,
+  body[data-surface="resident"] .svc:focus-visible,
+  body[data-surface="resident"] .fab:hover {
+    transform: none;
+  }
+}
