@@ -10,7 +10,7 @@
 //
 // No auth: citizens are anonymous by default. Per-citizen rate
 // limiting is a follow-up (TODO: tie to citizenPhone + IP).
-import { submitGrievance, readBody, applyCors } from '../_lib.js';
+import { submitGrievance, rateLimit, rateLimited, clientIp, readBody, applyCors } from '../_lib.js';
 
 export default async function handler(req, res) {
   applyCors(res);
@@ -20,6 +20,19 @@ export default async function handler(req, res) {
   const body = readBody(req);
   if (!body.tenantId) return res.status(400).json({ error: 'tenantId required' });
   if (!body.category) return res.status(400).json({ error: 'category required' });
+
+  // Rate limit: 5 submissions/min per IP and per phone (when given).
+  // Stops a citizen reporting the same pothole 50 times in a tantrum,
+  // and stops a bot from flooding a tenant's queue. Phone-key rate
+  // limit only applies when a phone is provided — anonymous reporters
+  // get IP-based throttling only.
+  const ip = clientIp(req);
+  const ipRl = rateLimit({ key: `submit:ip:${ip}`, limit: 5, windowMs: 60_000 });
+  if (!ipRl.allowed) return rateLimited(res, ipRl);
+  if (body.citizenPhone) {
+    const phoneRl = rateLimit({ key: `submit:phone:${body.citizenPhone}`, limit: 10, windowMs: 60_000 });
+    if (!phoneRl.allowed) return rateLimited(res, phoneRl);
+  }
 
   try {
     const grievance = await submitGrievance({

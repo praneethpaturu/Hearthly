@@ -21,7 +21,11 @@
 // from Meta; production deployments must add that before publishing
 // the URL into Meta's webhook console. Documented in IP-SAFETY.md.
 
-import { submitGrievance, tenantIdForWhatsappNumber, readBody, applyCors } from '../_lib.js';
+import {
+  submitGrievance, tenantIdForWhatsappNumber,
+  rateLimit, rateLimited, clientIp,
+  readBody, applyCors,
+} from '../_lib.js';
 
 // ── Category classifier (EN / HI / TE keyword map) ──────────────────
 // Order matters: first match wins. Keep specific terms before generic
@@ -105,6 +109,12 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' });
+
+  // Rate limit: 120/min per IP. A real BSP webhook is a small, known
+  // set of source IPs and bursts during peak hours, so this is loose.
+  // The simulator (one human clicking) lives well under the cap.
+  const ipRl = rateLimit({ key: `wa:ip:${clientIp(req)}`, limit: 120, windowMs: 60_000 });
+  if (!ipRl.allowed) return rateLimited(res, ipRl);
 
   const body = readBody(req);
 

@@ -30,6 +30,7 @@
 import {
   recordPhotoHash, findSimilarPhotoHashes,
   hammingHex, haversineKm,
+  rateLimit, rateLimited, clientIp,
   readBody, applyCors,
 } from './_lib.js';
 
@@ -51,6 +52,13 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'hash must be 16 lowercase hex chars' });
   }
   if (!body.tenantId) return res.status(400).json({ error: 'tenantId required' });
+
+  // Rate limit: 60/min per IP. Workers legitimately submit photos in
+  // bursts (clearing 10 bins in 15 min); this is loose enough not to
+  // block real work but tight enough to deter scripted hash-flooding.
+  const ip = clientIp(req);
+  const ipRl = rateLimit({ key: `photoverify:ip:${ip}`, limit: 60, windowMs: 60_000 });
+  if (!ipRl.allowed) return rateLimited(res, ipRl);
 
   const flags = [];
   let verdict = 'ok';

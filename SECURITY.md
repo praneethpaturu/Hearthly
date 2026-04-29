@@ -54,9 +54,26 @@ Before any non-demo deployment, the following must be true. Track in
 
 - [ ] All `OPENAI_API_KEY`, `SUPABASE_*`, and `JWT_SECRET` values rotated
       out of any committed history and stored in a secret manager.
-- [ ] CMCC OTP-bypass shortcut (`123456`) removed or gated by a build env.
-- [ ] DPDP Act 2023 data-flow review complete — see `docs/DPDP-COMPLIANCE.md`.
+- [x] CMCC OTP-bypass shortcut (`123456`) gated behind `isDemoMode()`.
+      The bypass is **automatically disabled** the moment a real SMS
+      provider env var is set (`MSG91_API_KEY`, `TWILIO_AUTH_TOKEN`,
+      or `GUPSHUP_API_KEY`). Production deploys can also disable it
+      explicitly with `DEMO_MODE=0`. Demo deploys keep working with no
+      env var set. Implemented in `cmcc-website/api/_lib.js · isDemoMode()`.
+- [x] Rate limiting added to all public-write endpoints
+      (`/api/auth/otp/{request,verify}`, `/api/grievances/submit`,
+      `/api/photo-verify`, `/api/whatsapp/inbound`). In-memory v1 —
+      good enough to deter casual abuse, imperfect on serverless. v2
+      should swap for **Upstash Redis** or **Vercel KV** for shared
+      counters across function instances.
+- [ ] Real SMS provider wired (MSG91 / Twilio / Gupshup) and
+      `DEMO_MODE=0` set in Vercel env.
+- [ ] HMAC verify on Meta WhatsApp `X-Hub-Signature-256` header before
+      the `/api/whatsapp/inbound` URL is published into Meta's webhook
+      console.
+- [ ] DPDP Act 2023 data-flow review complete — see
+      `docs/DPDP-COMPLIANCE.md`.
 - [ ] CARTO basemap licence acquired or basemap swapped to a licensed
       / self-hosted alternative.
-- [ ] Threat model reviewed for all `/api/*` endpoints (rate limiting,
-      input validation, SSRF, auth bypass).
+- [ ] Threat model reviewed for all `/api/*` endpoints (input
+      validation, SSRF, auth bypass, IDOR — rate limiting now done).

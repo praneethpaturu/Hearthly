@@ -46,11 +46,91 @@ export const OPERATORS_FALLBACK = new Map([
   ['+919999900014', { id: 'op5', tenantId: 'default-ts', phone: '+919999900014', name: 'Akhila Reddy', opRole: 'Compliance'    }],
 ]);
 
+// ── Demo-mode gate ────────────────────────────────────────────────
+// Controls whether the OTP `123456` backdoor accepts. Default: enabled
+// for any deploy that doesn't have a real SMS provider configured, so
+// the public Vercel demo keeps working. Flip to safe-prod mode with
+// DEMO_MODE=0 (or by configuring an SMS provider env var).
+//
+//   DEMO_MODE=1        → bypass enabled (explicit demo)
+//   DEMO_MODE=0        → bypass disabled (explicit prod)
+//   (unset)            → bypass enabled iff no SMS provider env vars set
+//
+// Production deploys MUST set DEMO_MODE=0 once a real SMS provider is
+// wired in. SECURITY.md tracks this as a launch gate.
+export function isDemoMode() {
+  if (process.env.DEMO_MODE === '1') return true;
+  if (process.env.DEMO_MODE === '0') return false;
+  // No explicit override: enabled unless a real SMS provider is set.
+  if (process.env.MSG91_API_KEY) return false;
+  if (process.env.TWILIO_AUTH_TOKEN) return false;
+  if (process.env.GUPSHUP_API_KEY) return false;
+  return true;
+}
+
+// ── In-memory rate limiter ────────────────────────────────────────
+// Per-key sliding-window counter. Good enough to deter casual abuse;
+// imperfect on serverless (each Vercel function instance has its own
+// memory), but better than no limit at all. v2 swaps for Upstash
+// Redis or Vercel KV — same call surface.
+//
+// Returns { allowed: bool, remaining: number, resetAt: ms-epoch }.
+// Caller is responsible for sending a 429 when allowed === false.
+const _global = globalThis;
+_global.__hearthlyRateLimit ||= new Map();
+const _rateMap = _global.__hearthlyRateLimit;
+
+export function rateLimit({ key, limit, windowMs }) {
+  if (!key) return { allowed: true, remaining: limit, resetAt: Date.now() + windowMs };
+  const now = Date.now();
+  const entry = _rateMap.get(key) || { hits: [], resetAt: now + windowMs };
+  // Drop hits outside the window
+  entry.hits = entry.hits.filter((t) => t > now - windowMs);
+  if (entry.hits.length >= limit) {
+    const oldest = entry.hits[0];
+    return { allowed: false, remaining: 0, resetAt: oldest + windowMs };
+  }
+  entry.hits.push(now);
+  entry.resetAt = now + windowMs;
+  _rateMap.set(key, entry);
+  // Light GC: every ~1000th call, prune fully-expired entries.
+  if (Math.random() < 0.001) {
+    for (const [k, e] of _rateMap) {
+      if (e.hits.length === 0 || e.hits[e.hits.length - 1] < now - windowMs) {
+        _rateMap.delete(k);
+      }
+    }
+  }
+  return { allowed: true, remaining: limit - entry.hits.length, resetAt: entry.resetAt };
+}
+
+// Helper: derive a stable IP from headers Vercel/Cloudflare/standard
+// proxies set. Falls back to a fixed bucket if no IP can be inferred,
+// which means anonymous traffic shares one rate-limit pool — fine for
+// abuse-prevention.
+export function clientIp(req) {
+  const xff = req.headers['x-forwarded-for'] || req.headers['X-Forwarded-For'];
+  if (xff) return String(xff).split(',')[0].trim();
+  const real = req.headers['x-real-ip'] || req.headers['X-Real-IP'];
+  if (real) return String(real).trim();
+  return 'unknown';
+}
+
+// Convenience: send 429 with Retry-After. Use as: if (!rl.allowed) return rateLimited(res, rl);
+export function rateLimited(res, rl) {
+  const retrySec = Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000));
+  res.setHeader('Retry-After', String(retrySec));
+  return res.status(429).json({
+    error: 'too many requests — slow down',
+    retryAfter: retrySec,
+  });
+}
+
 // ── In-memory shared state (fallback for heartbeats + audit) ───────
 // Heartbeats: keyed by `${tenantId}:${deviceId}` so two tenants can
 // host the same physical demo deviceId without collision.
 // Audit log: per-tenant array, keyed by tenantId.
-const _global = globalThis;
+// (_global declared above next to the rate-limit map.)
 _global.__hearthlyCmccState ||= {
   heartbeats: new Map(),       // key: `${tenantId}:${deviceId}` → { state, at, ip, ua, tenantId }
   auditLogByTenant: new Map(), // key: tenantId → Array<entry>
