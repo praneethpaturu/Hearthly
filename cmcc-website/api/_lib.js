@@ -245,6 +245,70 @@ export async function submitGrievance(input) {
   return memEntry;
 }
 
+// Update a grievance. Tenant-scoped: refuses to touch a row whose
+// tenant_id doesn't match the caller's. Returns the updated row, or
+// null if the row was not found / not in the caller's tenant.
+const VALID_STATUS = new Set(['open','assigned','resolved','rejected']);
+
+export async function updateGrievance({ id, tenantId, status, assignedTo, resolvedNote }) {
+  if (!id) throw new Error('id required');
+  if (!tenantId) throw new Error('tenantId required');
+  // Strip the 'GRV-' prefix the API returns; the underlying row id is
+  // a bigserial in the DB, but a hash-string in the in-memory fallback.
+  const idStr = String(id);
+  const dbId  = idStr.startsWith('GRV-') ? idStr.slice(4) : idStr;
+  if (status && !VALID_STATUS.has(status)) throw new Error('invalid status');
+
+  const patch = {};
+  if (status) {
+    patch.status = status;
+    if (status === 'resolved') patch.resolved_at = new Date().toISOString();
+  }
+  if (assignedTo !== undefined) patch.assigned_to = assignedTo;
+
+  const c = sb();
+  if (c) {
+    try {
+      // Convert to numeric DB id when possible (Supabase grievances.id
+      // is bigserial). If it's not numeric we fall through to the
+      // in-memory fallback.
+      const numId = Number(dbId);
+      if (Number.isFinite(numId) && Number.isInteger(numId)) {
+        const { data, error } = await c.from('grievances')
+          .update(patch)
+          .eq('id', numId)
+          .eq('tenant_id', tenantId)        // tenant guard
+          .select('id,tenant_id,ward_id,category,status,sla_due_at,created_at,description,citizen_phone,channel,language,severity,assigned_to,resolved_at')
+          .maybeSingle();
+        if (!error && data) {
+          return {
+            id: 'GRV-' + data.id, tenantId: data.tenant_id, wardId: data.ward_id,
+            category: data.category, status: data.status,
+            slaDueAt: data.sla_due_at ? new Date(data.sla_due_at).getTime() : null,
+            createdAt: new Date(data.created_at).getTime(),
+            description: data.description, citizenPhone: data.citizen_phone,
+            channel: data.channel, language: data.language, severity: data.severity,
+            assignedTo: data.assigned_to,
+            resolvedAt: data.resolved_at ? new Date(data.resolved_at).getTime() : null,
+          };
+        }
+        if (error) console.warn('[supabase] grievance update failed:', error.message);
+      }
+    } catch (e) { console.warn('[supabase] grievance update threw:', e.message); }
+  }
+  // Fallback: search the in-memory tenant array.
+  const arr = STATE.grievancesByTenant.get(tenantId) || [];
+  const row = arr.find((g) => g.id === idStr);
+  if (!row) return null;
+  if (status) {
+    row.status = status;
+    if (status === 'resolved') row.resolvedAt = Date.now();
+  }
+  if (assignedTo !== undefined) row.assignedTo = assignedTo;
+  if (resolvedNote) row.resolvedNote = resolvedNote;
+  return row;
+}
+
 export async function listGrievances({ tenantId, status, limit = 100 } = {}) {
   const tid = tenantId || DEFAULT_TENANT_ID;
   const c = sb();

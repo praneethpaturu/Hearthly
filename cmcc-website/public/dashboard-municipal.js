@@ -309,13 +309,18 @@ window.cmccMunicipal = (() => {
       </div>
 
       <div class="cmd-card" style="padding: 0;">
-        <table class="cmd-table">
-          <thead><tr><th>ID</th><th>Category</th><th>Issue</th><th>Ward</th><th>Citizen</th><th>Status</th><th>SLA</th><th>Opened</th></tr></thead>
+        <table class="cmd-table cmd-grievance-table">
+          <thead><tr><th>ID</th><th>Category</th><th>Issue</th><th>Ward</th><th>Citizen</th><th>Status</th><th>SLA</th><th>Opened</th><th>Actions</th></tr></thead>
           <tbody>
             ${open.slice(0, 30).map((g) => {
               const left = g.sla_breach_at - Date.now();
               const slaCls = left < 0 ? 'bad' : left < 2*3600*1000 ? 'warn' : 'ok';
               const slaTxt = left < 0 ? 'BREACHED' : left < 3600*1000 ? Math.round(left/60000)+'m left' : Math.round(left/3600000)+'h left';
+              const actions = g._serverSourced
+                ? `<button class="cmd-btn gri-act" data-id="${g.id}" data-act="assigned" title="Assign to ward officer">Assign</button>
+                   <button class="cmd-btn gri-act" data-id="${g.id}" data-act="resolved" title="Mark resolved">Resolve</button>
+                   <button class="cmd-btn gri-act" data-id="${g.id}" data-act="rejected" title="Reject (duplicate / out-of-scope)">Reject</button>`
+                : `<span class="cmd-badge mute" title="Demo seed — server actions only on real grievances">demo</span>`;
               return `<tr>
                 <td style="font-family: 'JetBrains Mono', monospace; color: var(--muted);">${g.id}</td>
                 <td><span style="font-family:'Material Symbols Outlined'; font-size: 14px; vertical-align: -3px; color: var(--brand);">${g.icon}</span> ${g.category}</td>
@@ -325,11 +330,43 @@ window.cmccMunicipal = (() => {
                 <td><span class="cmd-badge ${g.status === 'OPEN' ? 'info' : g.status === 'ESCALATED' ? 'bad' : 'warn'}">${g.status}</span></td>
                 <td><span class="cmd-badge ${slaCls}">${slaTxt}</span></td>
                 <td>${fmtAgo(g.opened)}</td>
+                <td style="white-space: nowrap;">${actions}</td>
               </tr>`;
             }).join('')}
           </tbody>
         </table>
       </div>`;
+
+    // Wire row-action buttons (only attached to server-sourced rows).
+    root.querySelectorAll('.gri-act').forEach((btn) => {
+      btn.onclick = async () => {
+        const id  = btn.dataset.id;
+        const act = btn.dataset.act;
+        if (!id || !act) return;
+        // Disable all action buttons on this row while in flight.
+        const tr = btn.closest('tr');
+        tr?.querySelectorAll('.gri-act').forEach((b) => b.disabled = true);
+        try {
+          const r = await window.api.http('POST', '/api/grievances/update', { id, status: act });
+          if (r?.grievance) {
+            // Patch the in-memory MUNI row, persist, re-render the view.
+            const idx = MUNI.grievances.findIndex((g) => g.id === id);
+            if (idx >= 0) {
+              MUNI.grievances[idx].status = String(r.grievance.status || act).toUpperCase();
+              if (r.grievance.assignedTo) MUNI.grievances[idx].assignedTo = r.grievance.assignedTo;
+            }
+            try { localStorage.setItem('vl_cmcc_muni_seed', JSON.stringify(MUNI)); } catch {}
+            window.api.toast?.(`${id} → ${act}`);
+            // Re-render in place.
+            const main = document.getElementById('main');
+            if (main) MUNI_ROUTES.grievances(main);
+          }
+        } catch (e) {
+          window.api.toast?.('Update failed: ' + (e.message || 'unknown'));
+          tr?.querySelectorAll('.gri-act').forEach((b) => b.disabled = false);
+        }
+      };
+    });
   }
 
   function sbmView(root) {
