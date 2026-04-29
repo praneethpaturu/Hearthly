@@ -1356,3 +1356,138 @@ button.card:active:not(:disabled),
   background: var(--color-accent-hover);
   border-color: var(--color-accent-hover);
 }
+
+
+/* ============================================================
+ * Phase 3 · Step 6: tables
+ *
+ * Tokenises .table (mobile/admin) and .cmd-table (CMCC dashboard).
+ * Reads as one cohesive table style across the operator log,
+ * audit log, IoT fleet, agents, orders, predictive-maintenance,
+ * OTA scheduler, admin all-orders, and analytics city/service
+ * breakdowns.
+ *
+ * Improvements over legacy:
+ *   · Tokenised every value (color, padding, type, motion)
+ *   · Sticky headers on BOTH mobile and CMCC (mobile didn't have)
+ *   · Zebra striping via :nth-child — subtle, optional via class
+ *   · Hover state with smooth bg transition (was abrupt)
+ *   · Tabular nums for numeric columns (.num) so figures align
+ *   · Density-aware padding via [data-density="compact"]
+ *   · Better last-row handling (no orphan border)
+ * ============================================================ */
+
+.table,
+.cmd-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  line-height: 1.4;
+  color: var(--color-text);
+}
+
+.table th,
+.cmd-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-family: var(--font-text);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  line-height: 1.4;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+.table th:first-child,
+.cmd-table th:first-child {
+  border-top-left-radius: var(--radius-sm);
+}
+.table th:last-child,
+.cmd-table th:last-child {
+  border-top-right-radius: var(--radius-sm);
+}
+
+.table td,
+.cmd-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
+  color: var(--color-text);
+  vertical-align: middle;
+  transition: background-color var(--motion-short) var(--ease-out);
+}
+
+/* Bold cells — typically the row's primary identifier */
+.table td b,
+.cmd-table td b {
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+
+/* Last row drops its bottom border so it doesn't double up
+   with the parent card border. */
+.table tbody tr:last-child td,
+.cmd-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Row hover — tokenised, smooth, restrained */
+.table tbody tr,
+.cmd-table tbody tr {
+  transition: background-color var(--motion-short) var(--ease-out);
+}
+.table tbody tr:hover td,
+.cmd-table tbody tr:hover td {
+  background: var(--color-surface-sunken);
+}
+
+/* Optional zebra striping. Opt-in via .table.zebra / .cmd-table.zebra
+   to avoid changing the look of every existing table. */
+.table.zebra tbody tr:nth-child(even) td,
+.cmd-table.zebra tbody tr:nth-child(even) td {
+  background: var(--color-surface-sunken);
+}
+.table.zebra tbody tr:nth-child(even):hover td,
+.cmd-table.zebra tbody tr:nth-child(even):hover td {
+  background: var(--color-divider);
+}
+
+/* Severity column colour (CMCC) — tokenised */
+.cmd-table .sev-critical { color: var(--color-danger);  font-weight: var(--weight-semibold); }
+.cmd-table .sev-warn     { color: var(--color-warning); font-weight: var(--weight-semibold); }
+.cmd-table .sev-info     { color: var(--color-text-muted); font-weight: var(--weight-semibold); }
+.cmd-table .sev-ok       { color: var(--color-success); font-weight: var(--weight-semibold); }
+
+/* Numeric column hint — opt-in via class. Right-aligns and
+   activates tabular-nums so figures line up vertically. Used in
+   the predictive-maintenance battery%, OTA percentages, KPI
+   sub-tables, etc. */
+.table .num,
+.cmd-table .num,
+.table th.num,
+.cmd-table th.num {
+  text-align: right;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+
+/* Compact density variant — applied either via class on the
+   table or via [data-density="compact"] on an ancestor. */
+.table.compact th,
+.table.compact td,
+.cmd-table.compact th,
+.cmd-table.compact td,
+[data-density="compact"] .table th,
+[data-density="compact"] .table td,
+[data-density="compact"] .cmd-table th,
+[data-density="compact"] .cmd-table td {
+  padding: var(--space-2) var(--space-3);
+}
