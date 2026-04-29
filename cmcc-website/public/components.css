@@ -1491,3 +1491,123 @@ button.card:active:not(:disabled),
 [data-density="compact"] .cmd-table td {
   padding: var(--space-2) var(--space-3);
 }
+
+
+/* ============================================================
+ * Phase 3 · Step 7: iconography
+ *
+ * The audit found the app already uses ONE icon set (Material
+ * Symbols Outlined) — no mixing. The actual problems were:
+ *   · sizes ranged 11–32 px ad-hoc with no rhythm
+ *   · weight axis never set, so the icons rendered at the
+ *     default ~400 with FOUT swap delay
+ *   · grade and optical-size never set, so small icons looked
+ *     fragile and large ones looked spindly
+ *
+ * Fix without touching ~120 markup sites:
+ *   · The HTML <link> now requests Material Symbols as a
+ *     variable font with `opsz,wght@20..48,300..700` (was
+ *     a single static cut)
+ *   · `.ico` (and the inline `font-family:'Material Symbols
+ *     Outlined'` cases that bypass it) get explicit
+ *     font-variation-settings so the axes actually take effect
+ *   · Sized variants `.ico.sm/md/lg/xl` tied to a 4-step ramp
+ *     so callers can opt in to a deliberate size on the grid
+ *   · A11y polish: user-select:none, vertical-align:middle,
+ *     line-height:1, anti-aliasing
+ *
+ * Full Lucide swap is deferred to surface phases (4–6) where
+ * we'll be touching the markup anyway.
+ * ============================================================ */
+
+.ico,
+[class*="material-symbols"],
+.material-symbols-outlined {
+  /* Render axes — opsz follows --ico-size (24 default), wght 400,
+     FILL/GRAD at neutral defaults so outlines stay clean. */
+  font-variation-settings:
+    'opsz' var(--ico-opsz, 24),
+    'wght' var(--ico-weight, 400),
+    'FILL' 0,
+    'GRAD' 0;
+  font-family: 'Material Symbols Outlined', 'Material Icons', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  vertical-align: middle;
+  line-height: 1;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Sized opt-in variants. Each updates --ico-opsz so the optical
+   size axis matches the rendered pixel size — small icons get
+   slightly heavier strokes, large icons stay refined. */
+.ico.xs,
+[class*="material-symbols"].xs {
+  font-size: 16px;
+  --ico-opsz: 20;
+}
+.ico.sm,
+[class*="material-symbols"].sm {
+  font-size: 18px;
+  --ico-opsz: 20;
+}
+.ico.md,
+[class*="material-symbols"].md {
+  font-size: 22px;
+  --ico-opsz: 24;
+}
+.ico.lg,
+[class*="material-symbols"].lg {
+  font-size: 28px;
+  --ico-opsz: 24;
+}
+.ico.xl,
+[class*="material-symbols"].xl {
+  font-size: 36px;
+  --ico-opsz: 40;
+}
+.ico.filled,
+[class*="material-symbols"].filled {
+  font-variation-settings:
+    'opsz' var(--ico-opsz, 24),
+    'wght' var(--ico-weight, 400),
+    'FILL' 1,
+    'GRAD' 0;
+}
+.ico.thin,
+[class*="material-symbols"].thin {
+  --ico-weight: 300;
+}
+.ico.bold,
+[class*="material-symbols"].bold {
+  --ico-weight: 600;
+}
+
+/* Some places use inline `font-family:'Material Symbols Outlined'`
+   on elements that *don't* have the .ico class (the live agent
+   marker SVGs, the dynamic island, the .icon-btn glyph, .mark
+   tiles, .mark-big, .logo-big, .quick .ico, .gri-row .ico,
+   .scheme-card hero, .login-form .ico, .sheet h3 ico, .task
+   .ico, .empty .ico, .auth-card .mark, etc.). Apply the same
+   variation-settings via attribute selector so the variable
+   axes still take effect there. */
+[style*="Material Symbols Outlined"],
+[font-family="Material Symbols Outlined"] {
+  font-variation-settings:
+    'opsz' var(--ico-opsz, 24),
+    'wght' var(--ico-weight, 400),
+    'FILL' 0,
+    'GRAD' 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
