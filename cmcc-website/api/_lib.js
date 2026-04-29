@@ -136,6 +136,141 @@ export async function getOperatorById(id) {
   return [...OPERATORS_FALLBACK.values()].find((o) => o.id === id) || null;
 }
 
+// ── Wards (in-memory fallback mirrors the seed in 0002_multitenancy.sql)
+export const WARDS_FALLBACK = [
+  { id: 'ghmc-w1',  tenantId: 'ghmc',   name: 'Madhapur',        cityName: 'Hyderabad', population: 90000,  lat: 17.4480, lng: 78.3915 },
+  { id: 'ghmc-w2',  tenantId: 'ghmc',   name: 'Banjara Hills',   cityName: 'Hyderabad', population: 60000,  lat: 17.4126, lng: 78.4471 },
+  { id: 'ghmc-w3',  tenantId: 'ghmc',   name: 'Begumpet',        cityName: 'Hyderabad', population: 55000,  lat: 17.4429, lng: 78.4636 },
+  { id: 'ghmc-w4',  tenantId: 'ghmc',   name: 'Kukatpally',      cityName: 'Hyderabad', population: 130000, lat: 17.4849, lng: 78.4138 },
+  { id: 'wmc-w1',   tenantId: 'wmc',    name: 'Hanamkonda',      cityName: 'Warangal',  population: 70000,  lat: 18.0091, lng: 79.5805 },
+  { id: 'wmc-w2',   tenantId: 'wmc',    name: 'Kazipet',         cityName: 'Warangal',  population: 45000,  lat: 18.0200, lng: 79.5500 },
+  { id: 'kmc-w1',   tenantId: 'kmc-tg', name: 'Khammam Central', cityName: 'Khammam',   population: 58000,  lat: 17.2473, lng: 80.1514 },
+];
+
+export async function listWards({ tenantId } = {}) {
+  if (!tenantId) return [];
+  const c = sb();
+  if (c) {
+    try {
+      const { data, error } = await c.from('wards')
+        .select('id,tenant_id,name,city_name,population,lat,lng')
+        .eq('tenant_id', tenantId)
+        .order('name');
+      if (!error && data) return data.map((w) => ({
+        id: w.id, tenantId: w.tenant_id, name: w.name, cityName: w.city_name,
+        population: w.population, lat: w.lat, lng: w.lng,
+      }));
+    } catch (e) { console.warn('[supabase] wards list threw:', e.message); }
+  }
+  return WARDS_FALLBACK.filter((w) => w.tenantId === tenantId);
+}
+
+// ── Grievances (citizen-submitted; tenant-scoped) ─────────────────
+// In-memory fallback: per-tenant array, capped at 500 to avoid leaking
+// demo memory between cold starts.
+_global.__hearthlyCmccState.grievancesByTenant ||= new Map();
+
+let _grievanceSeq = Date.now();
+function nextGrievanceId() { _grievanceSeq += 1; return 'GRV-' + _grievanceSeq.toString(36).toUpperCase(); }
+
+const VALID_CATEGORY = new Set(['garbage','water','streetlight','roads','sewage','stray','encroachment','mosquito','other']);
+
+export async function submitGrievance(input) {
+  const tenantId = input.tenantId || DEFAULT_TENANT_ID;
+  const wardId   = input.wardId || null;
+  const category = (input.category || 'other').toLowerCase();
+  if (!VALID_CATEGORY.has(category)) {
+    throw new Error('invalid category');
+  }
+  const description = (input.description || '').toString().slice(0, 4000);
+  const language    = ['en','hi','te','ur'].includes(input.language) ? input.language : 'en';
+  const channel     = ['web','whatsapp','ivr','walk-in'].includes(input.channel) ? input.channel : 'web';
+  const phone       = (input.citizenPhone || '').toString().slice(0, 16);
+  const lat = Number.isFinite(input.lat) ? input.lat : null;
+  const lng = Number.isFinite(input.lng) ? input.lng : null;
+  // Default SLA: 12h garbage, 24h water/sewage, 48h streetlight/mosquito,
+  // 96h roads, 72h stray, 120h encroachment, 24h fallback.
+  const slaHours = ({ garbage:12, water:24, sewage:24, streetlight:48, mosquito:48, roads:96, stray:72, encroachment:120 })[category] || 24;
+  const slaDueAt = new Date(Date.now() + slaHours * 3600 * 1000);
+
+  const row = {
+    tenant_id: tenantId,
+    ward_id: wardId,
+    citizen_phone: phone || null,
+    channel,
+    category,
+    severity: input.severity || 'normal',
+    title: (input.title || category).slice(0, 200),
+    description,
+    language,
+    media_url: input.mediaUrl || null,
+    lat, lng,
+    status: 'open',
+    sla_due_at: slaDueAt.toISOString(),
+  };
+
+  const c = sb();
+  if (c) {
+    try {
+      const { data, error } = await c.from('grievances').insert(row)
+        .select('id,tenant_id,ward_id,category,status,sla_due_at,created_at')
+        .single();
+      if (!error && data) {
+        return {
+          id: 'GRV-' + data.id,
+          tenantId: data.tenant_id,
+          wardId: data.ward_id,
+          category: data.category,
+          status: data.status,
+          slaDueAt: new Date(data.sla_due_at).getTime(),
+          createdAt: new Date(data.created_at).getTime(),
+        };
+      }
+      console.warn('[supabase] grievance insert failed:', error?.message);
+    } catch (e) { console.warn('[supabase] grievance insert threw:', e.message); }
+  }
+  // Fallback
+  if (!STATE.grievancesByTenant.has(tenantId)) STATE.grievancesByTenant.set(tenantId, []);
+  const arr = STATE.grievancesByTenant.get(tenantId);
+  const id = nextGrievanceId();
+  const memEntry = {
+    id, tenantId, wardId,
+    category: row.category, status: row.status,
+    slaDueAt: slaDueAt.getTime(), createdAt: Date.now(),
+    description: row.description, citizenPhone: phone || null,
+    channel, language, severity: row.severity,
+  };
+  arr.unshift(memEntry);
+  if (arr.length > 500) arr.length = 500;
+  return memEntry;
+}
+
+export async function listGrievances({ tenantId, status, limit = 100 } = {}) {
+  const tid = tenantId || DEFAULT_TENANT_ID;
+  const c = sb();
+  if (c) {
+    try {
+      let q = c.from('grievances')
+        .select('id,tenant_id,ward_id,category,status,sla_due_at,created_at,description,citizen_phone,channel,language,severity')
+        .eq('tenant_id', tid)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (status) q = q.eq('status', status);
+      const { data, error } = await q;
+      if (!error && data) return data.map((r) => ({
+        id: 'GRV-' + r.id, tenantId: r.tenant_id, wardId: r.ward_id,
+        category: r.category, status: r.status,
+        slaDueAt: r.sla_due_at ? new Date(r.sla_due_at).getTime() : null,
+        createdAt: new Date(r.created_at).getTime(),
+        description: r.description, citizenPhone: r.citizen_phone,
+        channel: r.channel, language: r.language, severity: r.severity,
+      }));
+    } catch (e) { console.warn('[supabase] grievance list threw:', e.message); }
+  }
+  const arr = STATE.grievancesByTenant.get(tid) || [];
+  return arr.filter((g) => !status || g.status === status).slice(0, limit);
+}
+
 // ── Heartbeat helpers ──────────────────────────────────────────────
 // Tenant scoping:
 //   upsertHeartbeat — devices declare their tenantId; defaults to

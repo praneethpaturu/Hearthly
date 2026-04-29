@@ -806,6 +806,41 @@ const toast = (m) => { const t = document.getElementById('toast'); t.textContent
 // Quick category click → open report sheet
 document.querySelectorAll('.quick[data-cat]').forEach((q) => q.onclick = () => openReport(q.dataset.cat));
 
+// ── D1 v3 · citizen tenant routing ─────────────────────────────────
+// Citizen picks (or has remembered for them) a ULB tenant + ward. The
+// pick is persisted to localStorage so a returning user lands on their
+// last-used jurisdiction. New endpoints:
+//   GET  /api/tenants/list             → all active ULBs
+//   GET  /api/tenants/wards?tenant_id  → wards within a ULB
+//   POST /api/grievances/submit        → tenant-scoped grievance
+const VL_CITIZEN_KEY = 'vl_citizen_tenant';
+const FALLBACK_TENANTS = [
+  { id: 'ghmc',       shortName: 'GHMC',    name: 'Greater Hyderabad Municipal Corporation' },
+  { id: 'wmc',        shortName: 'WMC',     name: 'Warangal Municipal Corporation' },
+  { id: 'kmc-tg',     shortName: 'KMC',     name: 'Khammam Municipal Corporation' },
+  { id: 'default-ts', shortName: 'TS',      name: 'Telangana Statewide (Demo)' },
+];
+const FALLBACK_WARDS = {
+  'ghmc':       [{id:'ghmc-w1',name:'Madhapur'},{id:'ghmc-w2',name:'Banjara Hills'},{id:'ghmc-w3',name:'Begumpet'},{id:'ghmc-w4',name:'Kukatpally'}],
+  'wmc':        [{id:'wmc-w1', name:'Hanamkonda'},{id:'wmc-w2',name:'Kazipet'}],
+  'kmc-tg':     [{id:'kmc-w1', name:'Khammam Central'}],
+  'default-ts': [],
+};
+function loadCitizen() { try { return JSON.parse(localStorage.getItem(VL_CITIZEN_KEY) || 'null') || { tenantId: 'ghmc', wardId: 'ghmc-w2' }; } catch { return { tenantId: 'ghmc', wardId: 'ghmc-w2' }; } }
+function saveCitizen(t) { localStorage.setItem(VL_CITIZEN_KEY, JSON.stringify(t)); }
+async function fetchJson(url, opts) {
+  try { const r = await fetch(url, opts); if (!r.ok) return null; return await r.json(); } catch { return null; }
+}
+async function fetchTenants() {
+  const j = await fetchJson('/api/tenants/list');
+  return (j?.tenants?.length ? j.tenants : FALLBACK_TENANTS);
+}
+async function fetchWards(tenantId) {
+  if (!tenantId) return [];
+  const j = await fetchJson(`/api/tenants/wards?tenant_id=${encodeURIComponent(tenantId)}`);
+  return (j?.wards?.length ? j.wards : (FALLBACK_WARDS[tenantId] || []));
+}
+
 function openReport(cat) {
   const wrap = document.getElementById('reportSheet');
   const cats = [
@@ -819,11 +854,18 @@ function openReport(cat) {
     { id: 'Mosquito',    ico: 'pest_control',sla: '48h' },
   ];
   let chosen = cat;
+  let citizen = loadCitizen();
   wrap.innerHTML = `
     <div class="sheet-wrap" id="sw">
       <div class="sheet-card">
         <h3>Report a civic issue</h3>
         <div class="desc">Auto-routed to your ward officer · SLA-tracked · resolved within hours</div>
+
+        <label>Local body (ULB)</label>
+        <select id="rTenant"><option>Loading…</option></select>
+
+        <label>Ward</label>
+        <select id="rWard"><option>Loading…</option></select>
 
         <label>Category</label>
         <div class="sheet-grid-cat">
@@ -847,26 +889,80 @@ function openReport(cat) {
         <p style="font-size: 10px; color: var(--muted); margin-top: 12px; text-align: center;">By submitting you agree to our DPDP-compliant data policy. Your grievance is logged on a tamper-evident ledger and visible to your ward officer in real time.</p>
       </div>
     </div>`;
+
+  // Populate tenant + ward selects (async; never blocks render).
+  const tenSel  = document.getElementById('rTenant');
+  const wardSel = document.getElementById('rWard');
+  (async () => {
+    const tenants = await fetchTenants();
+    tenSel.innerHTML = tenants.map((t) => `<option value="${t.id}">${t.shortName || t.name} · ${t.name}</option>`).join('');
+    if (tenants.find((t) => t.id === citizen.tenantId)) tenSel.value = citizen.tenantId; else citizen.tenantId = tenSel.value;
+    await refreshWards();
+  })();
+  async function refreshWards() {
+    const wards = await fetchWards(citizen.tenantId);
+    if (!wards.length) { wardSel.innerHTML = '<option value="">— statewide triage —</option>'; citizen.wardId = ''; return; }
+    wardSel.innerHTML = wards.map((w) => `<option value="${w.id}">${w.name}${w.cityName ? ' · ' + w.cityName : ''}</option>`).join('');
+    if (wards.find((w) => w.id === citizen.wardId)) wardSel.value = citizen.wardId; else citizen.wardId = wardSel.value;
+  }
+  tenSel.onchange = async () => { citizen.tenantId = tenSel.value; await refreshWards(); saveCitizen(citizen); };
+  wardSel.onchange = () => { citizen.wardId = wardSel.value; saveCitizen(citizen); };
+
   document.querySelectorAll('.sheet-grid-cat .c').forEach((c) => c.onclick = () => {
     document.querySelectorAll('.sheet-grid-cat .c').forEach((x) => x.classList.remove('on'));
     c.classList.add('on'); chosen = c.dataset.c;
   });
   document.getElementById('sw').onclick = (e) => { if (e.target === document.getElementById('sw')) wrap.innerHTML = ''; };
   document.getElementById('rClose').onclick = () => wrap.innerHTML = '';
-  document.getElementById('rGo').onclick = () => {
-    const id = 'GRV-' + (10900 + Math.floor(Math.random() * 99));
+
+  document.getElementById('rGo').onclick = async () => {
+    const goBtn = document.getElementById('rGo');
+    if (goBtn) { goBtn.disabled = true; goBtn.textContent = 'Submitting…'; }
+    const payload = {
+      tenantId: citizen.tenantId,
+      wardId: citizen.wardId || null,
+      category: (chosen || 'other').toLowerCase(),
+      description: document.getElementById('rDesc').value || '',
+      citizenPhone: document.getElementById('rPhone').value || '',
+      language: (window.api?.lang?.() || 'EN').toLowerCase(),
+      channel: 'web',
+    };
+
+    // Server submit — the API persists tenant-scoped. On failure we still
+    // mirror to the in-browser dashboard seed so the local demo keeps
+    // showing the new ticket.
+    let serverGrievance = null;
+    try {
+      const r = await fetch('/api/grievances/submit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j?.grievance) serverGrievance = j.grievance;
+    } catch { /* offline / endpoint missing — fall through to local */ }
+
+    const id = serverGrievance?.id || ('GRV-' + (10900 + Math.floor(Math.random() * 99)));
     wrap.innerHTML = '';
+    saveCitizen(citizen);
     toast(`✓ Submitted as ${id} · auto-routed to ward officer`);
     setTimeout(() => toast(`SMS sent · WhatsApp confirmation sent to your phone`), 2600);
-    // Persist in localStorage so the dashboard sees it (same browser)
+
+    // Mirror into the existing in-browser CMCC seed (legacy demo path) so
+    // the operator dashboard sees the new grievance immediately even
+    // when running without Supabase configured.
     try {
       const seed = JSON.parse(localStorage.getItem('vl_cmcc_muni_seed') || '{}');
       seed.grievances = seed.grievances || [];
+      const wardName = (document.querySelector('#rWard option:checked')?.textContent || '').split(' · ')[0] || 'Statewide triage';
+      const tenantName = (document.querySelector('#rTenant option:checked')?.textContent || '').split(' · ')[0] || citizen.tenantId;
       seed.grievances.unshift({
-        id, category: chosen, icon: ({Garbage:'recycling',Water:'water_drop',Streetlight:'lightbulb',Roads:'route',Sewage:'plumbing',Stray:'pets',Encroachment:'fence',Mosquito:'pest_control'}[chosen] || 'priority_high'),
-        text: document.getElementById('rDesc').value || 'New grievance via Citizen Portal',
-        ward: 'Banjara Hills Ward', wardId: 'w-ghmc-1',
-        citizen: 'Citizen Portal user', citizen_phone: document.getElementById('rPhone').value || '+91 9XXXXXXXXX',
+        id, category: chosen,
+        tenantId: citizen.tenantId,
+        icon: ({Garbage:'recycling',Water:'water_drop',Streetlight:'lightbulb',Roads:'route',Sewage:'plumbing',Stray:'pets',Encroachment:'fence',Mosquito:'pest_control'}[chosen] || 'priority_high'),
+        text: payload.description || 'New grievance via Citizen Portal',
+        ward: wardName + ' Ward', wardId: citizen.wardId,
+        tenant: tenantName,
+        citizen: 'Citizen Portal user', citizen_phone: payload.citizenPhone || '+91 9XXXXXXXXX',
         opened: Date.now(),
         sla_breach_at: Date.now() + 12 * 3600 * 1000,
         status: 'OPEN', sla_h: 12,
