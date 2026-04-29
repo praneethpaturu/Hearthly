@@ -169,6 +169,56 @@ window.cmccMunicipal = (() => {
     };
   }
 
+  // ── A6 v1 · client-side BoW + cosine for the "similar to GRV-X" badge ──
+  // Same algorithm as cmcc-website/api/_lib.js · cosineSimBow, just
+  // running here to avoid one /api/grievances/similar call per row.
+  // Pairwise scan over recent open server-sourced rows; if two rows
+  // score >= 0.6 they get cross-linked via _similarTo.
+  const _STOPWORDS = new Set([
+    'the','a','an','is','are','was','were','be','been','being','of','to','in','on','at','for','with','by','from','as','and','or','but','not','no','it','its','this','that','these','those','have','has','had','do','does','did','will','would','should','could','may','might','can','must','about','near','some','any','all','more','very',
+    'है','हैं','था','थे','थी','और','या','के','की','का','को','से','में','पर','तो','भी','एक','यह','वह',
+    'ఉంది','ఉన్నాయి','మరియు','లేదా','యొక్క','ను','కు','లో','మీద','కానీ','ఒక','ఇది','అది',
+  ]);
+  function _tokens(text) {
+    if (!text) return [];
+    const cleaned = String(text).toLowerCase().replace(/[!-/:-@[-`{-~ -⁯⸀-⹿]/g, ' ');
+    return cleaned.split(/\s+/).filter((t) => t.length >= 2 && !_STOPWORDS.has(t));
+  }
+  function _bow(text) {
+    const m = new Map();
+    for (const t of _tokens(text)) m.set(t, (m.get(t) || 0) + 1);
+    return m;
+  }
+  function _cosine(a, b) {
+    if (!a || !b || !a.size || !b.size) return 0;
+    const [s, l] = a.size < b.size ? [a, b] : [b, a];
+    let dot = 0, na = 0, nb = 0;
+    for (const [t, c] of s) dot += c * (l.get(t) || 0);
+    for (const v of a.values()) na += v * v;
+    for (const v of b.values()) nb += v * v;
+    return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1);
+  }
+  function annotateSimilar(rows, threshold = 0.6) {
+    const open = rows.filter((g) => g._serverSourced && g.status !== 'RESOLVED' && g.text).slice(0, 50);
+    if (open.length < 2) return;
+    const vecs = open.map((g) => _bow(g.text));
+    for (let i = 0; i < open.length; i++) {
+      for (let j = i + 1; j < open.length; j++) {
+        const s = _cosine(vecs[i], vecs[j]);
+        if (s >= threshold) {
+          // Attach the OLDEST id as the canonical "original" so the
+          // badge always points back, not forward in time.
+          const [older, newer] = open[i].opened <= open[j].opened
+            ? [open[i], open[j]] : [open[j], open[i]];
+          if (!newer._similarTo || (newer._similarToScore || 0) < s) {
+            newer._similarTo = older.id;
+            newer._similarToScore = s;
+          }
+        }
+      }
+    }
+  }
+
   async function refreshServerGrievances() {
     if (!window.api?.token?.()) return;
     let json;
@@ -185,6 +235,7 @@ window.cmccMunicipal = (() => {
     incoming.forEach((g) => byId.set(g.id, g));
     (MUNI.grievances || []).forEach((g) => { if (!byId.has(g.id)) byId.set(g.id, g); });
     MUNI.grievances = [...byId.values()].sort((a, b) => b.opened - a.opened);
+    annotateSimilar(MUNI.grievances);
     try { localStorage.setItem('vl_cmcc_muni_seed', JSON.stringify(MUNI)); } catch {}
 
     // If the operator is on the grievances tab right now, re-render it.
@@ -321,10 +372,13 @@ window.cmccMunicipal = (() => {
                    <button class="cmd-btn gri-act" data-id="${g.id}" data-act="resolved" title="Mark resolved">Resolve</button>
                    <button class="cmd-btn gri-act" data-id="${g.id}" data-act="rejected" title="Reject (duplicate / out-of-scope)">Reject</button>`
                 : `<span class="cmd-badge mute" title="Demo seed — server actions only on real grievances">demo</span>`;
+              const simPill = g._similarTo
+                ? `<span class="cmd-badge warn" title="Possible duplicate of ${g._similarTo} (cosine ${(g._similarToScore || 0).toFixed(2)})" style="margin-left: 6px; font-family:'JetBrains Mono', monospace; font-size:10px;">↗ similar to ${g._similarTo}</span>`
+                : '';
               return `<tr>
                 <td style="font-family: 'JetBrains Mono', monospace; color: var(--muted);">${g.id}</td>
                 <td><span style="font-family:'Material Symbols Outlined'; font-size: 14px; vertical-align: -3px; color: var(--brand);">${g.icon}</span> ${g.category}</td>
-                <td>${g.text}</td>
+                <td>${g.text}${simPill}</td>
                 <td>${g.ward}</td>
                 <td>${g.citizen}</td>
                 <td><span class="cmd-badge ${g.status === 'OPEN' ? 'info' : g.status === 'ESCALATED' ? 'bad' : 'warn'}">${g.status}</span></td>

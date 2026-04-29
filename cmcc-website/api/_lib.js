@@ -428,6 +428,94 @@ export async function listGrievances({ tenantId, status, limit = 100 } = {}) {
   return arr.filter((g) => !status || g.status === status).slice(0, limit);
 }
 
+// ── A6 · grievance dedup (BoW + cosine, pure-JS) ─────────────────────
+// "13 neighbours already reported this pothole." Catches duplicate
+// citizen reports at intake and lets operators cluster open tickets.
+//
+// Engine: tokenise → bag-of-words term-frequency vector → cosine
+// similarity. No external dep, no schema change. Works for EN, HI,
+// TE and mixed text — Indic scripts split on whitespace + punctuation
+// the same way Latin does. Cost: ~5µs to tokenise a 200-char message;
+// ~3µs per cosine; we cap candidates to 500/tenant so a /similar
+// query is well under 5 ms even cold.
+//
+// Upgrade path (A6 v2): swap _bow with OpenAI text-embedding-3-small
+// (1536-dim) when OPENAI_API_KEY is present + pgvector is enabled in
+// Supabase. Same call surface (similarity is the only contract
+// downstream code cares about).
+
+// Strip ASCII + Indic punctuation, split on whitespace + zero-width
+// joiners, lowercase, drop tokens shorter than 2 chars or in the stop
+// list. Keep it tiny — over-aggressive normalisation hurts recall.
+const _STOPWORDS_EN = new Set(['the','a','an','is','are','was','were','be','been','being','of','to','in','on','at','for','with','by','from','as','and','or','but','not','no','it','its','this','that','these','those','i','you','he','she','we','they','me','my','your','our','their','have','has','had','do','does','did','will','would','should','could','may','might','can','must','about','near','some','any','all','more','very']);
+const _STOPWORDS_HI = new Set(['है','हैं','था','थे','थी','और','या','के','की','का','को','से','में','पर','तो','भी','एक','यह','वह','यहाँ','वहाँ']);
+const _STOPWORDS_TE = new Set(['ఉంది','ఉన్నాయి','మరియు','లేదా','యొక్క','ను','కు','లో','మీద','కానీ','ఒక','ఇది','అది','ఇక్కడ','అక్కడ']);
+
+export function tokenize(text) {
+  if (!text || typeof text !== 'string') return [];
+  // Replace punctuation with space; keep letters / digits / Indic ranges
+  const cleaned = text.toLowerCase()
+    .replace(/[!-/:-@[-`{-~ -⁯⸀-⹿]/g, ' ');
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  return tokens.filter((t) => {
+    if (t.length < 2) return false;
+    if (_STOPWORDS_EN.has(t)) return false;
+    if (_STOPWORDS_HI.has(t)) return false;
+    if (_STOPWORDS_TE.has(t)) return false;
+    return true;
+  });
+}
+
+// term → count map (term-frequency)
+function _bow(text) {
+  const m = new Map();
+  for (const t of tokenize(text)) m.set(t, (m.get(t) || 0) + 1);
+  return m;
+}
+
+// Cosine similarity between two term-frequency Maps. Returns 0..1.
+export function cosineSimBow(a, b) {
+  if (!a || !b || a.size === 0 || b.size === 0) return 0;
+  const [small, large] = a.size < b.size ? [a, b] : [b, a];
+  let dot = 0, na = 0, nb = 0;
+  for (const [t, ca] of small) {
+    const cb = large.get(t) || 0;
+    dot += ca * cb;
+  }
+  for (const v of a.values()) na += v * v;
+  for (const v of b.values()) nb += v * v;
+  return dot / (Math.sqrt(na) * Math.sqrt(nb) || 1);
+}
+
+// One-shot helper: cosine on raw text strings.
+export function similarity(a, b) { return cosineSimBow(_bow(a), _bow(b)); }
+
+// Find similar grievances to a query text, scoped to one tenant.
+// Returns top-N matches above minScore, sorted descending. Excludes
+// the grievance with id === excludeId so a grievance never ranks
+// itself as similar.
+export async function findSimilarGrievances({
+  tenantId, text, excludeId,
+  minScore = 0.45, limit = 5, hours = 7 * 24,
+}) {
+  if (!tenantId || !text) return [];
+  const queryVec = _bow(text);
+  if (queryVec.size === 0) return [];
+
+  const all = await listGrievances({ tenantId, limit: 500 });
+  const cutoff = Date.now() - hours * 3600 * 1000;
+  const scored = [];
+  for (const g of all) {
+    if (g.id === excludeId) continue;
+    if (g.createdAt && g.createdAt < cutoff) continue;
+    if (!g.description) continue;
+    const score = cosineSimBow(queryVec, _bow(g.description));
+    if (score >= minScore) scored.push({ ...g, score });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, limit);
+}
+
 // ── A3 · photo-evidence hash ledger (in-memory ring buffer) ──────────
 // Holds recent photo fingerprints per tenant, capped at 500/tenant.
 // Keyed by tenantId; each entry: { hash, workerId, grievanceId, takenAt,
