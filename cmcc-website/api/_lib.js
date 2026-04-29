@@ -348,6 +348,70 @@ export async function listGrievances({ tenantId, status, limit = 100 } = {}) {
   return arr.filter((g) => !status || g.status === status).slice(0, limit);
 }
 
+// ── A3 · photo-evidence hash ledger (in-memory ring buffer) ──────────
+// Holds recent photo fingerprints per tenant, capped at 500/tenant.
+// Keyed by tenantId; each entry: { hash, workerId, grievanceId, takenAt,
+// recordedAt, lat, lng }. Used by photo-verify to detect duplicate or
+// re-uploaded photos and to flag photos taken far from the claimed
+// location. Cold-start safe — empty buffer is fine.
+_global.__hearthlyCmccState.photoHashesByTenant ||= new Map();
+
+const PHOTO_RING_LIMIT = 500;
+const PHOTO_DEDUP_HOURS = 24;
+
+// Hamming distance on hex strings of equal length. Returns the number
+// of differing bits across the two hashes. 64-bit pHash → 0..64.
+export function hammingHex(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return Infinity;
+  const len = Math.min(a.length, b.length);
+  let dist = Math.abs(a.length - b.length) * 4;
+  for (let i = 0; i < len; i++) {
+    let x = parseInt(a[i], 16) ^ parseInt(b[i], 16);
+    while (x) { dist += x & 1; x >>= 1; }
+  }
+  return dist;
+}
+
+export function recordPhotoHash({ tenantId, workerId, grievanceId, hash, takenAt, lat, lng }) {
+  const tid = tenantId || DEFAULT_TENANT_ID;
+  if (!hash) return;
+  if (!STATE.photoHashesByTenant.has(tid)) STATE.photoHashesByTenant.set(tid, []);
+  const arr = STATE.photoHashesByTenant.get(tid);
+  arr.unshift({
+    hash, workerId: workerId || null, grievanceId: grievanceId || null,
+    takenAt: takenAt || null, recordedAt: Date.now(),
+    lat: Number.isFinite(lat) ? lat : null,
+    lng: Number.isFinite(lng) ? lng : null,
+  });
+  if (arr.length > PHOTO_RING_LIMIT) arr.length = PHOTO_RING_LIMIT;
+}
+
+export function findSimilarPhotoHashes({ tenantId, hash, hours = PHOTO_DEDUP_HOURS, threshold = 8 }) {
+  const tid = tenantId || DEFAULT_TENANT_ID;
+  const arr = STATE.photoHashesByTenant.get(tid) || [];
+  const cutoff = Date.now() - hours * 3600 * 1000;
+  const matches = [];
+  for (const e of arr) {
+    if (e.recordedAt < cutoff) continue;
+    const d = hammingHex(hash, e.hash);
+    if (d <= threshold) matches.push({ ...e, hammingDistance: d });
+  }
+  return matches.sort((a, b) => a.hammingDistance - b.hammingDistance);
+}
+
+// Haversine distance in km — for "photo taken far from claimed ward"
+// tamper checks. Returns Infinity if either point is missing.
+export function haversineKm(lat1, lng1, lat2, lng2) {
+  if (![lat1, lng1, lat2, lng2].every(Number.isFinite)) return Infinity;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
 // ── Heartbeat helpers ──────────────────────────────────────────────
 // Tenant scoping:
 //   upsertHeartbeat — devices declare their tenantId; defaults to

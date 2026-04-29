@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en" data-cmd>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0a0f1e" />
+<title>Photo-evidence verification · Hearthly</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/tokens.css" />
+<link rel="stylesheet" href="/styles.css" />
+<link rel="stylesheet" href="/components.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&family=Material+Symbols+Outlined" />
+<style>
+  body { background: var(--bg); color: var(--ink); font-family: 'Inter', system-ui, sans-serif;
+         min-height: 100dvh; margin: 0; padding: 32px 20px;
+         background-image: radial-gradient(900px 500px at 80% -100px, rgba(56,189,248,.18), transparent 60%); }
+  .wrap { max-width: 880px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 760px) { .wrap { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+  .panel h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+  .panel h2 { margin: 0 0 18px; font-size: 13px; color: var(--muted); font-weight: 500; }
+  label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase;
+          letter-spacing: 0.04em; font-weight: 700; margin: 12px 0 6px; }
+  input[type="text"], select {
+    width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 10px; color: var(--ink); font-size: 13px; outline: none; font-family: inherit;
+  }
+  input[type="file"] { font-size: 12px; color: var(--ink-2); }
+  button {
+    margin-top: 14px; width: 100%; padding: 12px; background: var(--brand); color: #052030;
+    border: 0; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .verdict {
+    margin-top: 14px; padding: 14px; border-radius: 12px; font-size: 13px;
+    border: 1px solid var(--line); background: var(--bg);
+  }
+  .verdict.ok      { border-color: #16a34a; background: rgba(34,197,94,.10); }
+  .verdict.suspect { border-color: #f59e0b; background: rgba(245,158,11,.10); }
+  .verdict.bad     { border-color: #ef4444; background: rgba(239,68,68,.10); }
+  .verdict .h { font-weight: 700; font-size: 14px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .verdict .h.ok      { color: #16a34a; }
+  .verdict .h.suspect { color: #f59e0b; }
+  .verdict .h.bad     { color: #ef4444; }
+  .verdict .flag { display: block; padding: 6px 0; border-top: 1px dashed var(--line); font-size: 12px; color: var(--ink-2); }
+  .verdict .flag:first-of-type { border-top: 0; }
+  .meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 10px; word-break: break-all; }
+  .help { margin-top: 18px; padding: 12px; background: var(--bg); border: 1px solid var(--line);
+          border-radius: 10px; font-size: 11px; color: var(--muted); line-height: 1.7; }
+  .help code { font-family: 'JetBrains Mono', monospace; color: var(--ink); }
+  .preview { max-width: 100%; max-height: 220px; border-radius: 8px; margin-top: 8px;
+             border: 1px solid var(--line); display: block; }
+  .badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 999px;
+           background: rgba(56,189,248,.16); color: #38bdf8; border: 1px solid rgba(56,189,248,.3);
+           text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; margin-left: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="panel">
+    <h1>Photo-evidence verification <span class="badge">demo</span></h1>
+    <h2>Detects duplicate photos + EXIF/GPS tamper · runs entirely on-device for the hash</h2>
+
+    <label>Tenant (ULB)</label>
+    <select id="tenantSel">
+      <option value="ghmc">GHMC · Greater Hyderabad</option>
+      <option value="wmc">WMC · Warangal</option>
+      <option value="kmc-tg">KMC · Khammam</option>
+      <option value="default-ts">TS Statewide (Demo)</option>
+    </select>
+
+    <label>Worker ID (optional)</label>
+    <input type="text" id="workerId" value="W-001" placeholder="W-001" />
+
+    <label>Grievance ID (optional)</label>
+    <input type="text" id="grievanceId" placeholder="GRV-..." />
+
+    <label>Photo</label>
+    <input type="file" id="photo" accept="image/*" capture="environment" />
+
+    <button id="go">Compute hash &amp; verify</button>
+
+    <div id="verdict"></div>
+    <div id="meta" class="meta"></div>
+
+    <div class="help">
+      <b>Try this:</b> upload any photo, hit Verify (verdict will be
+      <code>ok</code> for the first one). Then upload the <i>same</i>
+      file again → verdict flips to <code>suspect_duplicate</code>
+      (Hamming 0/64). Try a different photo with the same worker ID
+      → that one will be <code>ok</code>. Photos with no EXIF
+      (screenshots, edited images) get a soft flag.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h1>How the verdict is computed</h1>
+    <h2>All checks tenant-scoped · last 24 h ledger · in-memory v1</h2>
+    <ol style="font-size: 13px; color: var(--ink-2); line-height: 1.7; padding-left: 18px;">
+      <li><b>pHash</b> · downscale 32×32 → DCT-II → top-left 8×8 (drop DC) → median threshold → 64-bit hash. Robust to lighting, mild crops, JPEG re-saves.</li>
+      <li><b>Hamming dedup</b> · compare to this tenant's last 24 h. ≤5/64 → <code>suspect_duplicate</code>; ≤10/64 → soft flag.</li>
+      <li><b>EXIF age</b> · DateTimeOriginal &gt; 24 h ago → <code>suspect_tamper</code>. Missing EXIF → soft flag (likely screenshot).</li>
+      <li><b>GPS distance</b> · if photo carries GPS and a claimed location was provided, distance &gt; 5 km → <code>suspect_tamper</code>.</li>
+    </ol>
+    <p style="font-size: 12px; color: var(--muted); margin-top: 14px; line-height: 1.6;">
+      v2 will swap the in-memory ledger for the <code>photo_hashes</code>
+      Supabase table (per-worker indexes, RLS by tenant) and add an
+      Anthropic VLM check that the photo's <i>content</i> matches the
+      task category — pothole, bin, streetlight, etc.
+    </p>
+  </div>
+
+</div>
+
+<script src="/phash.js"></script>
+<script>
+const btn = document.getElementById('go');
+const meta = document.getElementById('meta');
+const ver  = document.getElementById('verdict');
+let preview;
+
+document.getElementById('photo').addEventListener('change', (e) => {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  if (preview) preview.remove();
+  preview = document.createElement('img');
+  preview.className = 'preview';
+  preview.src = URL.createObjectURL(f);
+  e.target.parentNode.appendChild(preview);
+});
+
+btn.onclick = async () => {
+  const file = document.getElementById('photo').files?.[0];
+  if (!file) return alert('Pick a photo first');
+  btn.disabled = true; btn.textContent = 'Hashing locally…';
+  meta.textContent = '';
+  ver.innerHTML = '';
+
+  let fp;
+  try {
+    fp = await window.phash.fingerprint(file);
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Compute hash & verify';
+    return alert('hash failed: ' + e.message);
+  }
+  meta.innerHTML = `phash: <b>${fp.hash}</b> · size: ${(fp.size/1024).toFixed(1)} KB · type: ${fp.type || '?'}<br/>` +
+    (fp.exif?.takenAt ? `EXIF taken: ${new Date(fp.exif.takenAt).toISOString()}<br/>` : 'EXIF: not found<br/>') +
+    (fp.exif?.lat ? `GPS: ${fp.exif.lat.toFixed(5)}, ${fp.exif.lng?.toFixed(5) || '—'}` : 'GPS: none');
+
+  btn.textContent = 'Verifying…';
+  let r;
+  try {
+    const resp = await fetch('/api/photo-verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tenantId: document.getElementById('tenantSel').value,
+        workerId: document.getElementById('workerId').value || null,
+        grievanceId: document.getElementById('grievanceId').value || null,
+        hash: fp.hash,
+        takenAt: fp.exif?.takenAt || null,
+        lat: fp.exif?.lat ?? null,
+        lng: fp.exif?.lng ?? null,
+      }),
+    });
+    r = await resp.json();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Compute hash & verify';
+    return alert('verify failed: ' + e.message);
+  }
+
+  const cls = r.verdict === 'ok' ? 'ok' : r.verdict === 'suspect_duplicate' ? 'bad' : 'suspect';
+  const head = r.verdict === 'ok' ? '✓ Verified · genuine' :
+               r.verdict === 'suspect_duplicate' ? '✗ Suspected duplicate' :
+               '⚠ Suspected tamper';
+  ver.innerHTML = `
+    <div class="verdict ${cls}">
+      <div class="h ${cls}">${head} · confidence ${(r.confidence * 100).toFixed(0)}%</div>
+      ${(r.flags || []).map((f) => `<span class="flag">• ${f}</span>`).join('') || '<span class="flag">No flags raised — clean evidence.</span>'}
+      ${r.similarTo ? `<span class="flag" style="font-family:'JetBrains Mono',monospace;font-size:11px;">→ similar to: ${JSON.stringify(r.similarTo)}</span>` : ''}
+    </div>`;
+  btn.disabled = false; btn.textContent = 'Compute hash & verify';
+};
+</script>
+</body>
+</html>
