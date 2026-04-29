@@ -11,12 +11,19 @@ export default async function handler(req, res) {
       dbHealthy = true;
     } catch { /* keep false */ }
   }
+  // STATE shape since D1 v1: heartbeats is one Map keyed by
+  // `${tenantId}:${deviceId}`, audit is a Map<tenantId → array>.
+  let auditTotal = 0;
+  if (STATE.auditLogByTenant) {
+    for (const arr of STATE.auditLogByTenant.values()) auditTotal += arr.length;
+  }
   return res.status(200).json({
     ok: true,
     runtime: 'vercel-serverless',
     storage: supabaseConfigured() ? (dbHealthy ? 'supabase' : 'supabase-degraded') : 'in-memory',
     heartbeats_inmem: STATE.heartbeats.size,
-    audit_inmem: STATE.auditLog.length,
+    audit_inmem: auditTotal,
+    audit_tenants: STATE.auditLogByTenant?.size || 0,
     operators_fallback: OPERATORS_FALLBACK.size,
   });
 }
