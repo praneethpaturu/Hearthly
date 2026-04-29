@@ -1,0 +1,86 @@
+name: AWS deploy (manual)
+
+# Manual-trigger only. Vercel auto-deploys are unaffected.
+# Required repo secrets (set in: Settings → Secrets and variables → Actions):
+#   AWS_ROLE_ARN          — IAM role assumable via OIDC by this repo
+#   AWS_REGION            — e.g. ap-south-1
+#   ECR_WEB_REPO          — e.g. <acct>.dkr.ecr.ap-south-1.amazonaws.com/hearthly-web
+#   ECR_CMCC_REPO         — e.g. <acct>.dkr.ecr.ap-south-1.amazonaws.com/hearthly-cmcc
+#   ECS_CLUSTER           — e.g. hearthly-staging
+#   ECS_WEB_SERVICE       — e.g. web
+#   ECS_CMCC_SERVICE      — e.g. cmcc
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Which service(s) to deploy'
+        required: true
+        default: 'both'
+        type: choice
+        options: [both, web, cmcc]
+      tag:
+        description: 'Image tag (default: short SHA)'
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        run: |
+          TAG="${{ inputs.tag }}"
+          if [ -z "$TAG" ]; then TAG="$(git rev-parse --short HEAD)"; fi
+          echo "value=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push web
+        if: inputs.target == 'web' || inputs.target == 'both'
+        env:
+          REPO: ${{ secrets.ECR_WEB_REPO }}
+          TAG:  ${{ steps.tag.outputs.value }}
+        run: |
+          docker build -t "$REPO:$TAG" -t "$REPO:latest" -f Dockerfile .
+          docker push "$REPO:$TAG"
+          docker push "$REPO:latest"
+
+      - name: Build & push cmcc
+        if: inputs.target == 'cmcc' || inputs.target == 'both'
+        env:
+          REPO: ${{ secrets.ECR_CMCC_REPO }}
+          TAG:  ${{ steps.tag.outputs.value }}
+        run: |
+          docker build -t "$REPO:$TAG" -t "$REPO:latest" -f cmcc-website/Dockerfile cmcc-website
+          docker push "$REPO:$TAG"
+          docker push "$REPO:latest"
+
+      - name: Roll web service
+        if: inputs.target == 'web' || inputs.target == 'both'
+        run: |
+          aws ecs update-service \
+            --cluster "${{ secrets.ECS_CLUSTER }}" \
+            --service "${{ secrets.ECS_WEB_SERVICE }}" \
+            --force-new-deployment
+
+      - name: Roll cmcc service
+        if: inputs.target == 'cmcc' || inputs.target == 'both'
+        run: |
+          aws ecs update-service \
+            --cluster "${{ secrets.ECS_CLUSTER }}" \
+            --service "${{ secrets.ECS_CMCC_SERVICE }}" \
+            --force-new-deployment
