@@ -139,6 +139,66 @@ window.cmccMunicipal = (() => {
 
   let MUNI = municipalSeed();
 
+  // ─── D1 v4 · server-side tenant-scoped grievance merge ──────────────
+  // Pull the current operator's tenant grievances from the new API and
+  // prepend them to MUNI.grievances so they show up alongside the demo
+  // seed in the queue. Failure is non-fatal — the legacy seed remains
+  // visible. Re-renders the grievances view if it's currently active.
+  function mapServerToMuni(g) {
+    const cat = String(g.category || 'other');
+    const display = cat[0].toUpperCase() + cat.slice(1);
+    const ICON = { garbage:'recycling', water:'water_drop', streetlight:'lightbulb', roads:'route', sewage:'plumbing', stray:'pets', encroachment:'fence', mosquito:'pest_control', other:'priority_high' };
+    const SLA_H = { garbage:12, water:24, sewage:24, streetlight:48, mosquito:48, roads:96, stray:72, encroachment:120, other:24 };
+    return {
+      id: g.id,
+      tenantId: g.tenantId,
+      category: display,
+      icon: ICON[cat] || 'priority_high',
+      sla_h: SLA_H[cat] || 24,
+      text: g.description || ('New ' + display + ' grievance'),
+      ward: g.wardId || 'Statewide triage',
+      wardId: g.wardId || null,
+      citizen: g.channel === 'whatsapp' ? 'WhatsApp citizen' : 'Citizen Portal user',
+      citizenId: null,
+      citizen_phone: g.citizenPhone || '',
+      opened: g.createdAt || Date.now(),
+      sla_breach_at: g.slaDueAt || (g.createdAt || Date.now()) + (SLA_H[cat] || 24) * 3600 * 1000,
+      status: String(g.status || 'open').toUpperCase(),
+      nps: null,
+      _serverSourced: true,
+    };
+  }
+
+  async function refreshServerGrievances() {
+    if (!window.api?.token?.()) return;
+    let json;
+    try {
+      json = await window.api.http('GET', '/api/grievances/list?limit=200');
+    } catch { return; /* offline / endpoint missing — keep legacy seed */ }
+    if (!json?.grievances?.length) return;
+
+    const incoming = json.grievances.map(mapServerToMuni);
+    // Merge: incoming server rows take priority over any same-id legacy
+    // duplicate (server has the canonical state). Server-sourced rows
+    // are also persisted into the muni seed so a refresh shows them.
+    const byId = new Map();
+    incoming.forEach((g) => byId.set(g.id, g));
+    (MUNI.grievances || []).forEach((g) => { if (!byId.has(g.id)) byId.set(g.id, g); });
+    MUNI.grievances = [...byId.values()].sort((a, b) => b.opened - a.opened);
+    try { localStorage.setItem('vl_cmcc_muni_seed', JSON.stringify(MUNI)); } catch {}
+
+    // If the operator is on the grievances tab right now, re-render it.
+    const route = (location.hash || '').slice(1);
+    if (route === 'grievances' && typeof MUNI_ROUTES?.grievances === 'function') {
+      const main = document.getElementById('main');
+      if (main) MUNI_ROUTES.grievances(main);
+    }
+  }
+
+  // Fire once at boot, then refresh every 30s. Cheap GET; tenant-scoped.
+  setTimeout(refreshServerGrievances, 1500);
+  setInterval(refreshServerGrievances, 30000);
+
   // ─── Helpers ────────────────────────────────────────────────────────
   const fmtAgo = (ms) => {
     const s = Math.floor((Date.now() - ms) / 1000);
