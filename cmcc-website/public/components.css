@@ -2486,3 +2486,202 @@ button.card:active:not(:disabled),
     margin-left: 0;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Phase 4.7 · CMCC operator screens — surface accent integration
+ *
+ * The CMCC chrome (sidebar, topbar, cards, tables) was already cleaned
+ * up in Phase 3.x and the topbar polish fix. Phase 4.7 finishes the
+ * surface by:
+ *   - Wiring the `operator` accent (slate-blue #2563eb) through nav
+ *     active states, primary buttons, focus rings, and KPI deltas
+ *   - Tightening sidebar spacing + active-state indicator
+ *   - Calming KPI typography (tabular-nums, kicker labels)
+ *   - Token-aligning section headers + subheads
+ *
+ * Operator console is permanent-dark (data-cmd is always set), so all
+ * tokens here resolve through the dark cascade. Scoped to
+ * body[data-surface="operator"].
+ *
+ * Pure visual override; no JS / class / structure changes.
+ * ───────────────────────────────────────────────────────────────────── */
+
+body[data-surface="operator"] {
+  /* Belt-and-braces — make sure data-cmd self-heal hasn't blanked
+     the canvas if a stale theme attribute snuck in. */
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* Sidebar — single accent bar on active nav, calmer hover --------- */
+body[data-surface="operator"] .cmd-side a {
+  border-radius: var(--radius-md);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0;
+}
+body[data-surface="operator"] .cmd-side a:hover {
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  color: var(--color-text);
+}
+body[data-surface="operator"] .cmd-side a.active {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+body[data-surface="operator"] .cmd-side a.active::before {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent) 16%, transparent);
+}
+body[data-surface="operator"] .cmd-side a.active .ico {
+  font-variation-settings: 'FILL' 1, 'wght' 600, 'opsz' 24;
+  color: var(--color-accent);
+}
+
+body[data-surface="operator"] .cmd-side .section-h {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-bold);
+}
+
+body[data-surface="operator"] .cmd-side .brand .mark {
+  background: var(--color-accent);
+  background-image: none;
+  color: #fff;
+  border-radius: var(--radius-md);
+}
+body[data-surface="operator"] .cmd-side .operator .av {
+  background: var(--color-accent);
+  background-image: none;
+  color: #fff;
+}
+
+/* Main content — generous padding, refined h2 -------------------- */
+body[data-surface="operator"] .cmd-main h2 {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+  margin: 0;
+}
+body[data-surface="operator"] .cmd-main .subhead {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  margin-top: var(--space-1);
+}
+
+/* KPI cards — typographic, accent on positive deltas ------------- */
+body[data-surface="operator"] .cmd-kpi {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: none;
+}
+body[data-surface="operator"] .cmd-kpi .lbl {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-muted);
+}
+body[data-surface="operator"] .cmd-kpi .val {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  margin-top: var(--space-1);
+}
+body[data-surface="operator"] .cmd-kpi .delta {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+}
+body[data-surface="operator"] .cmd-kpi .delta.up {
+  color: var(--color-success);
+}
+body[data-surface="operator"] .cmd-kpi .delta.down {
+  color: var(--color-danger);
+}
+
+/* Cards generally — flatten, hairline ---------------------------- */
+body[data-surface="operator"] .cmd-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+body[data-surface="operator"] .cmd-card h3 {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+
+/* Buttons — surface accent on primary ---------------------------- */
+body[data-surface="operator"] .cmd-btn {
+  background: var(--surface-2, var(--surface));
+  border: 1px solid var(--line);
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color var(--motion-fast) var(--ease-standard),
+              color var(--motion-fast) var(--ease-standard);
+}
+body[data-surface="operator"] .cmd-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+body[data-surface="operator"] .cmd-btn.primary,
+body[data-surface="operator"] .btn.cta {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+body[data-surface="operator"] .cmd-btn.primary:hover,
+body[data-surface="operator"] .btn.cta:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+  color: #fff;
+}
+
+/* Focus rings — surface accent ----------------------------------- */
+body[data-surface="operator"] .cmd-btn:focus-visible,
+body[data-surface="operator"] .tb-btn:focus-visible,
+body[data-surface="operator"] input:focus-visible,
+body[data-surface="operator"] select:focus-visible,
+body[data-surface="operator"] textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 32%, transparent);
+}
+
+/* Live / status pills — token-aligned ---------------------------- */
+body[data-surface="operator"] .cmd-badge {
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+}
+
+/* Tables (operator) ----------------------------------------------- */
+body[data-surface="operator"] .cmd-table th {
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-semibold);
+}
+body[data-surface="operator"] .cmd-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-surface="operator"] .cmd-side a {
+    transition: none;
+  }
+}
