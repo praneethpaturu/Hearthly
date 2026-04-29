@@ -5,13 +5,18 @@
 // ─────────────────────────────────────────────────────────────────────
 
 window.api = (() => {
-  const TOKEN_KEY = 'vl_cmcc_token';
-  const USER_KEY  = 'vl_cmcc_user';
+  const TOKEN_KEY  = 'vl_cmcc_token';
+  const USER_KEY   = 'vl_cmcc_user';
+  const TENANT_KEY = 'vl_cmcc_tenant';
 
   const token = () => localStorage.getItem(TOKEN_KEY);
   const setToken = (v) => v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY);
   const user = () => { try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { return null; } };
   const setUser = (u) => u ? localStorage.setItem(USER_KEY, JSON.stringify(u)) : localStorage.removeItem(USER_KEY);
+  // Tenant cache — populated by GET /api/tenants/me on first dashboard
+  // paint. Cached so the brand pill renders instantly on reload.
+  const tenant = () => { try { return JSON.parse(localStorage.getItem(TENANT_KEY) || 'null'); } catch { return null; } };
+  const setTenant = (t) => t ? localStorage.setItem(TENANT_KEY, JSON.stringify(t)) : localStorage.removeItem(TENANT_KEY);
 
   async function http(method, url, body) {
     const r = await fetch(url, {
@@ -27,7 +32,7 @@ window.api = (() => {
     return d;
   }
 
-  function logout() { setToken(null); setUser(null); location.replace('/login.html'); }
+  function logout() { setToken(null); setUser(null); setTenant(null); location.replace('/login.html'); }
 
   // ── i18n (EN ↔ HI) ─────────────────────────────────────────────────
   const LANG_KEY = 'vl_cmcc_lang';
@@ -1051,5 +1056,5 @@ window.api = (() => {
     catch { return {}; }
   }
 
-  return { token, setToken, user, setUser, http, logout, toast, fmtINR, fmtTime, lang, setLang, t, tr, translateNode, pauseI18n, resumeI18n, _state };
+  return { token, setToken, user, setUser, tenant, setTenant, http, logout, toast, fmtINR, fmtTime, lang, setLang, t, tr, translateNode, pauseI18n, resumeI18n, _state };
 })();

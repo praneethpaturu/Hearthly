@@ -10,7 +10,22 @@
   // ─── Operator login gate (validates token against the server) ───────
   if (!api.token() || !api.user()) { location.replace('/login.html'); return; }
   const ME = api.user();
-  api.http('GET', '/api/me').catch(() => { api.setToken(null); api.setUser(null); location.replace('/login.html'); });
+  api.http('GET', '/api/me').catch(() => { api.setToken(null); api.setUser(null); api.setTenant(null); location.replace('/login.html'); });
+
+  // Tenant context — fetch + cache for the brand pill. Failures are
+  // non-fatal; the pill simply stays on whatever was last cached (or
+  // hidden until the call succeeds).
+  (async () => {
+    try {
+      const r = await api.http('GET', '/api/tenants/me');
+      if (r?.tenant) {
+        api.setTenant(r.tenant);
+        // Re-render just the topbar so the pill picks up the fresh tenant.
+        const tb = document.querySelector('.cmd-top .tenant-pill');
+        if (tb && r.tenant.shortName) tb.textContent = r.tenant.shortName;
+      }
+    } catch { /* keep whatever was cached */ }
+  })();
 
   // ═══ Mock dataset (deterministic-ish; seeded into localStorage) ═══
   function seed() {
@@ -513,9 +528,14 @@
       ai:'AI Insights', compliance:'Compliance', audit:'Audit Log',
       team:'Team', settings:'Settings',
     };
+    const tenant = api.tenant?.();
+    const tenantPill = tenant
+      ? `<span class="tenant-pill" title="${(tenant.name || '').replace(/"/g, '&quot;')}" data-tenant-id="${tenant.id}">${tenant.shortName || tenant.id}</span>`
+      : `<span class="tenant-pill" style="opacity:.5;" title="Loading tenant…">…</span>`;
     return `
       <header class="cmd-top">
         <div class="breadcrumb">CMCC / <b>${labels[route] || route}</b></div>
+        ${tenantPill}
         <div class="search"><span style="font-family:'Material Symbols Outlined'; color: var(--muted); font-size:18px;">search</span>
           <input placeholder="Search community, agent, order, device..." />
           <span class="kbd">⌘K</span>

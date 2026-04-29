@@ -81,11 +81,11 @@ function phoneStep() {
     <button class="primary" id="sendBtn">Send OTP</button>
     <div class="demo-list">
       <div class="h">Demo operators (OTP 123456)</div>
-      <div class="row" data-num="+919999900010"><b>Priya Iyer</b> · <span>NOC Lead</span></div>
-      <div class="row" data-num="+919999900011"><b>Sandeep Rao</b> · <span>NOC Operator</span></div>
-      <div class="row" data-num="+919999900012"><b>Rakhi Menon</b> · <span>NOC Operator</span></div>
-      <div class="row" data-num="+919999900013"><b>Faizan Ahmed</b> · <span>On-Call SRE</span></div>
-      <div class="row" data-num="+919999900014"><b>Akhila Reddy</b> · <span>Compliance</span></div>
+      <div class="row" data-num="+919999900010"><b>Priya Iyer</b> · <span>NOC Lead · GHMC</span></div>
+      <div class="row" data-num="+919999900011"><b>Sandeep Rao</b> · <span>NOC Operator · GHMC</span></div>
+      <div class="row" data-num="+919999900012"><b>Rakhi Menon</b> · <span>NOC Operator · GHMC</span></div>
+      <div class="row" data-num="+919999900013"><b>Faizan Ahmed</b> · <span>On-Call SRE · TS Demo</span></div>
+      <div class="row" data-num="+919999900014"><b>Akhila Reddy</b> · <span>Compliance · TS Demo</span></div>
     </div>
     <div class="foot">DPDP-compliant · TLS 1.3 · ap-south-1 (mock)</div>
   `;
@@ -177,6 +177,13 @@ async function verify(otp) {
   try {
     const r = await api.http('POST', '/api/auth/otp/verify', { phone, otp });
     api.setToken(r.token); api.setUser(r.user);
+    // Pre-fetch tenant so the dashboard topbar renders the brand pill on
+    // first paint without a network round-trip. Failure is non-fatal —
+    // dashboard.js retries on its own.
+    try {
+      const tr = await api.http('GET', '/api/tenants/me');
+      if (tr?.tenant) api.setTenant?.(tr.tenant);
+    } catch { /* dashboard.js will retry */ }
     api.toast('Welcome ' + (r.user.name || ''));
     setTimeout(() => location.replace('/'), 400);
   } catch (e) {

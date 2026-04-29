@@ -2685,3 +2685,34 @@ body[data-surface="operator"] .cmd-table td {
     transition: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * Phase D1.v2 · Tenant brand pill
+ *
+ * Renders the operator's ULB short-name in the topbar so an operator
+ * always knows which tenant they're inside. Picks up the operator
+ * surface accent so it cohere​s with the rest of the chrome.
+ * ───────────────────────────────────────────────────────────────────── */
+.cmd-top .tenant-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  margin-left: var(--space-2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 30%, transparent);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  user-select: none;
+}
+@media (max-width: 900px) {
+  .cmd-top .tenant-pill {
+    /* Topbar wraps below 900px; let the pill drop with the row */
+    margin-left: 0;
+  }
+}
