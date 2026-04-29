@@ -1032,3 +1032,327 @@ button.card:active:not(:disabled),
 .cmd-kpi .delta.up   { color: var(--color-success); }
 .cmd-kpi .delta.down { color: var(--color-danger); }
 .cmd-kpi.danger .val { color: var(--color-danger); }
+
+
+/* ============================================================
+ * Phase 3 · Step 5: sheets / dialogs
+ *
+ * Tokenises the modal vocabulary used by ui.sheet, ui.prompt,
+ * the booking sheet, photo proof, voice booking, plans, visitor
+ * pass, smart locker, damage report, complaint queue, OTA
+ * scheduler, schedule view, etc.
+ *
+ * Specialised modals (.cmdk-overlay command palette,
+ * .tour-overlay onboarding, .pb-host playbook, .bio-overlay)
+ * keep their legacy chrome — they're surface-specific and get
+ * polished in Phases 4/6.
+ *
+ * Improvements over legacy:
+ *   · Tokenised every value (color, radius, padding, shadow,
+ *     type, motion, z-index)
+ *   · Stronger backdrop-filter blur on supporting browsers
+ *   · Spring-curve enter motion (--ease-spring) on the sheet
+ *     translateY; calm fade on the overlay
+ *   · Confident sheet title (--text-xl + --tracking-tight +
+ *     --font-display + --leading-snug)
+ *   · h4 sub-headings tokenised as small uppercase eyebrow
+ *   · prefers-reduced-motion already handled via tokens.css
+ *   · Toast / push notifications use --shadow-lg layered shadow
+ *     and tokenised type
+ *   · Chips inside sheets get a focus ring (a11y) + accent-soft
+ *     resting state when .on
+ * ============================================================ */
+
+/* — Modal backdrop */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  align-items: end;
+  justify-items: stretch;
+  background: var(--color-overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-medium) var(--ease-out);
+}
+.sheet-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (min-width: 720px) {
+  .sheet-overlay {
+    align-items: center;
+    justify-items: center;
+    padding: var(--space-4);
+  }
+}
+
+/* — Sheet body. Bottom-up on mobile, centered on tablet+. */
+.sheet {
+  width: 100%;
+  max-width: 460px;
+  max-height: 86dvh;
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-5) calc(var(--space-5) + var(--safe-bottom));
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-bottom: 0;
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text);
+  transform: translateY(24px);
+  transition: transform var(--motion-medium) var(--ease-spring);
+}
+.sheet-overlay.open .sheet {
+  transform: translateY(0);
+}
+@media (min-width: 720px) {
+  .sheet {
+    border-bottom: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    max-width: 440px;
+    padding: var(--space-6);
+  }
+}
+
+/* — Drag-grip on mobile */
+.sheet .grip {
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: -2px auto var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-border-strong);
+}
+@media (min-width: 720px) {
+  .sheet .grip {
+    display: none;
+  }
+}
+
+/* — Sheet title + description */
+.sheet h3 {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text);
+}
+.sheet .desc {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-normal);
+  color: var(--color-text-muted);
+}
+
+/* — Section eyebrow inside a sheet (h4) */
+.sheet h4 {
+  margin: var(--space-5) 0 var(--space-2);
+  font-family: var(--font-text);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--color-text-muted);
+}
+.sheet h4:first-child,
+.sheet h4:first-of-type {
+  margin-top: var(--space-3);
+}
+
+
+/* ───────────────────────────────────────────────────────────
+ * Toast — bottom snackbar (mobile + admin + cmcc)
+ *
+ * Solid dark pill, centered, slides up from bottom. Uses
+ * --color-surface-inverse so it stays dark in light mode and
+ * dark mode (intentional inversion = signals "system message").
+ * ───────────────────────────────────────────────────────── */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-20) + var(--safe-bottom));
+  z-index: var(--z-toast);
+  max-width: calc(100% - var(--space-10));
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-inverse);
+  color: var(--color-bg);
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(8px);
+  transition:
+    opacity   var(--motion-short) var(--ease-out),
+    transform var(--motion-medium) var(--ease-spring);
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+
+/* ───────────────────────────────────────────────────────────
+ * Push notification banner (top of screen)
+ *
+ * Card-shaped, slides down from above. Tokenised icon tile.
+ * ───────────────────────────────────────────────────────── */
+
+.push {
+  position: fixed;
+  top: calc(var(--space-3) + var(--safe-top));
+  left: var(--space-3);
+  right: var(--space-3);
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  transform: translateY(-120%);
+  transition:
+    transform var(--motion-medium) var(--ease-spring),
+    opacity   var(--motion-short)  var(--ease-out);
+}
+.push.show {
+  transform: translateY(0);
+}
+@media (min-width: 720px) {
+  .push {
+    left: auto;
+    right: var(--space-6);
+    max-width: 380px;
+  }
+}
+
+.push-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  display: grid;
+  place-items: center;
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-size: 20px;
+  line-height: 1;
+}
+.push-body {
+  flex: 1;
+  min-width: 0;
+}
+.push-title {
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1.3;
+  color: var(--color-text);
+  letter-spacing: 0;
+}
+.push-text {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  line-height: 1.4;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.push-tag {
+  flex-shrink: 0;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-family: var(--font-text);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  line-height: 1.2;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+
+
+/* ───────────────────────────────────────────────────────────
+ * Chips — segmented options inside sheets
+ *
+ * Used for time-slot chips (booking sheet), schedule chips,
+ * OTA-when chips, citizen-portal category chips, etc.
+ * ───────────────────────────────────────────────────────── */
+
+.chips {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: var(--space-1) 0 var(--space-2);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.chips::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px var(--space-3);
+  min-height: 32px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-family: var(--font-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  letter-spacing: 0;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--motion-short) var(--ease-out),
+    border-color     var(--motion-short) var(--ease-out),
+    color            var(--motion-short) var(--ease-out),
+    transform        var(--motion-short) var(--ease-out);
+}
+.chip:hover:not(.on) {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-sunken);
+}
+.chip:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.chip:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--color-accent);
+}
+.chip.on {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  border-color: var(--color-accent);
+}
+.chip.on:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+}
