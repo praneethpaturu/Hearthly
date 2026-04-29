@@ -2264,3 +2264,225 @@ button.card:active:not(:disabled),
   --ico-opsz: 48;
   text-align: center;
 }
+
+
+/* ============================================================
+ * Phase 4 · CMCC topbar polish
+ *
+ * Two real bugs the Phase 3 primitives introduced on the CMCC
+ * topbar:
+ *   1. The Phase 3.3 global `input` rule (solid bg, min-height
+ *      36px, padding 9px 12px) was overriding the topbar
+ *      search input's expected transparent treatment. Result:
+ *      placeholder invisible, search box appears empty.
+ *   2. The Phase 3.3 custom-chevron padding on every <select>
+ *      (padding-right calc + linear-gradient bg) was making
+ *      the 2-character language toggle ("EN" / "हि") render
+ *      nearly as wide as the action buttons.
+ *
+ * Plus a layout polish: tighter gap, smaller button density on
+ * the topbar so the search has room to breathe, eyebrow status
+ * pill tokenised.
+ * ============================================================ */
+
+/* — Container density */
+.cmd-top {
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+}
+
+/* — Search box: prominent input with visible placeholder */
+.cmd-top .search {
+  flex: 1;
+  min-width: 200px;
+  max-width: 520px;
+  margin-left: var(--space-4);
+  padding: 0 var(--space-3);
+  min-height: 36px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  transition:
+    border-color     var(--motion-short) var(--ease-out),
+    background-color var(--motion-short) var(--ease-out),
+    box-shadow       var(--motion-short) var(--ease-out);
+}
+.cmd-top .search:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-elevated);
+}
+.cmd-top .search:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus-soft);
+}
+.cmd-top .search input {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--color-text);
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  outline: none;
+  cursor: pointer;
+}
+.cmd-top .search input:focus {
+  box-shadow: none;
+  border-color: transparent;
+}
+.cmd-top .search input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+.cmd-top .search .kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 var(--space-1);
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-text);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  letter-spacing: var(--tracking-wider);
+}
+
+/* — Language select: compact pill, no custom chevron padding */
+.cmd-top #cmccLang {
+  width: auto;
+  min-width: 0;
+  max-width: 72px;
+  padding: 0 var(--space-3);
+  min-height: 32px;
+  font-family: var(--font-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  /* Override the Phase 3.3 select chevron — 2-letter labels
+     don't need the extra ~18px padding-right + arrow image. */
+  background-image: none;
+  padding-right: var(--space-3);
+  text-align-last: center;
+}
+
+/* — tb-btn density on the topbar */
+.cmd-top .tb-btn {
+  padding: 6px var(--space-3);
+  min-height: 32px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  border-radius: var(--radius-md);
+}
+.cmd-top .tb-btn .ico {
+  font-size: 16px;
+  --ico-opsz: 20;
+}
+
+/* Bell button keeps its compact circular shape */
+.cmd-top .tb-btn.bell-tb {
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cmd-top .tb-btn.bell-tb .ico {
+  font-size: 18px;
+  --ico-opsz: 20;
+}
+.cmd-top .tb-btn.bell-tb .badge-num {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0;
+  font-size: 9px;
+  border: 2px solid var(--color-bg);
+  letter-spacing: 0;
+}
+
+/* — Status pill ("All systems nominal" / "X mobile-linked") */
+.cmd-top .status-pill {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  min-height: 32px;
+  background: var(--color-success-soft);
+  color: var(--color-success-text);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  font-family: var(--font-text);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* — Breadcrumb */
+.cmd-top .breadcrumb {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  letter-spacing: -0.005em;
+}
+.cmd-top .breadcrumb b {
+  padding: 4px var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+}
+
+/* — Hide the toggle's text label on tighter widths so it doesn't
+     line-wrap or steal space from the search */
+@media (max-width: 1280px) {
+  .cmd-top .tb-btn:not(.bell-tb):not(#themeToggle) {
+    /* Keep label visible — they're still wide enough */
+  }
+}
+@media (max-width: 1100px) {
+  .cmd-top .search {
+    max-width: 280px;
+  }
+}
+@media (max-width: 900px) {
+  .cmd-top {
+    flex-wrap: wrap;
+    padding: var(--space-2) var(--space-3);
+  }
+  .cmd-top .search {
+    order: 99;
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+  }
+}

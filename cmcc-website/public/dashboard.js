@@ -434,11 +434,38 @@
       searchInp.onfocus = open;
       searchInp.onclick = open;
     }
-    document.getElementById('themeToggle').onclick = () => {
-      const cur = document.documentElement.hasAttribute('data-cmd');
-      if (cur) document.documentElement.removeAttribute('data-cmd');
-      else document.documentElement.setAttribute('data-cmd', '');
-    };
+    // Theme toggle on the CMCC operator console is currently a no-op.
+    // The console's legacy chrome (sidebar, topbar, ticker) is hard-
+    // coded dark via legacy --bg/--surface tokens that aren't theme-
+    // aware. The previous handler toggled [data-cmd] off, which only
+    // flipped the *new* design-system tokens to light — the legacy
+    // chrome stayed dark, producing a half-flipped state with white
+    // cards on a dark canvas.
+    //
+    // Re-introduce a working light mode for CMCC in Phase 6 by adding
+    // a light variant of the legacy palette and tying it to the
+    // toggle. Until then we keep the operator console permanently
+    // dark and surface a small toast explaining the choice.
+    const themeBtn = document.getElementById('themeToggle');
+    if (themeBtn) {
+      themeBtn.onclick = () => {
+        // Keep [data-cmd] in place so the new design-system tokens
+        // continue to resolve to dark.
+        if (!document.documentElement.hasAttribute('data-cmd')) {
+          document.documentElement.setAttribute('data-cmd', '');
+        }
+        api.toast?.('Operator console is dark-only for now');
+      };
+      // Visually demote the button — Phase 6 will replace it with a
+      // working theme switcher.
+      themeBtn.style.opacity = '0.35';
+      themeBtn.title = 'Operator console is dark-only';
+    }
+    // Self-heal: if a previous session toggled data-cmd off, restore
+    // it on next paint so cards re-cascade to dark.
+    if (!document.documentElement.hasAttribute('data-cmd')) {
+      document.documentElement.setAttribute('data-cmd', '');
+    }
     const langSel = document.getElementById('cmccLang');
     if (langSel) langSel.onchange = (e) => api.setLang(e.target.value);
   }
