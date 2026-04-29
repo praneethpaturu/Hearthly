@@ -554,6 +554,7 @@
         <select class="tb-btn" id="cmccLang" title="Language" style="padding: 0 10px;">
           <option value="EN" ${api.lang() === 'EN' ? 'selected' : ''}>EN</option>
           <option value="HI" ${api.lang() === 'HI' ? 'selected' : ''}>हि</option>
+          <option value="TE" ${api.lang() === 'TE' ? 'selected' : ''}>తె</option>
         </select>
         <button class="tb-btn" id="themeToggle" title="Toggle theme"><span class="ico">contrast</span></button>
       </header>`;

@@ -895,32 +895,223 @@ window.api = (() => {
     for (let i = m.length - 1; i >= 1; i--) out = out.replace('$' + i, m[i]);
     return out;
   }
+  // ── B1: Telugu (TE) dictionary ──
+  // Curated set covering the most-visible UI surfaces — citizen portal,
+  // operator login, dashboard nav + KPIs, action labels. Roughly the
+  // first-paint vocabulary on /citizen.html, /login.html, /index.html.
+  //
+  // TE-QA: every entry below is LLM-assisted, NOT yet reviewed by a
+  // native Telangana civic-services Telugu speaker. Before any GoTG /
+  // ITE&C demo, a glossary review is required — gov-specific
+  // terminology (ward, ULB, grievance, scheme names) often has a
+  // canonical Telugu term that a generic translator misses.
+  // Strings not in this map fall back to English when TE is selected
+  // (handled by _resolve below).
+  const TE_DICT = {
+    // Brand / shell
+    'Hearthly': 'హర్త్లీ',
+    'Hearthly Governance': 'హర్త్లీ గవర్నెన్స్',
+    'CMCC · LIVE': 'CMCC · లైవ్',
+    'TELANGANA · LIVE': 'తెలంగాణ · లైవ్',
+    'Centralized Monitoring & Control Center · operator access only': 'కేంద్రీకృత పర్యవేక్షణ & నియంత్రణ కేంద్రం · ఆపరేటర్ యాక్సెస్ మాత్రమే',
+
+    // Login
+    'Operator sign-in': 'ఆపరేటర్ సైన్-ఇన్',
+    'Verify your number': 'మీ నంబర్‌ను ధృవీకరించండి',
+    'Mobile number': 'మొబైల్ నంబర్',
+    'Enter 6-digit code': '6-అంకెల కోడ్‌ను నమోదు చేయండి',
+    'Send OTP': 'OTP పంపండి',
+    'Sending OTP…': 'OTP పంపుతోంది…',
+    'Verifying…': 'ధృవీకరిస్తోంది…',
+    'Verify & sign in': 'ధృవీకరించండి & సైన్ ఇన్',
+    'Change number': 'నంబర్ మార్చండి',
+    'Demo operators (OTP 123456)': 'డెమో ఆపరేటర్లు (OTP 123456)',
+    'NOC Lead': 'NOC ప్రధానం',
+    'NOC Operator': 'NOC ఆపరేటర్',
+    'On-Call SRE': 'ఆన్-కాల్ SRE',
+    'Compliance': 'అనుపాలన',
+    'Resend OTP': 'OTP మళ్లీ పంపండి',
+    'Welcome': 'స్వాగతం',
+    'Enter +91XXXXXXXXXX': '+91XXXXXXXXXX నమోదు చేయండి',
+
+    // Sidebar / navigation
+    'Monitor': 'మానిటర్',
+    'Operate': 'ఆపరేట్',
+    'Govern': 'గవర్నెన్స్',
+    'Saved views': 'సేవ్ చేసిన వీక్షణలు',
+    'Municipal · ULB': 'మునిసిపల్ · ULB',
+    'Overview': 'అవలోకనం',
+    'Anomalies': 'అసాధారణతలు',
+    'IoT Fleet': 'IoT ఫ్లీట్',
+    'Analytics': 'విశ్లేషణ',
+    'Communities': 'కమ్యూనిటీలు',
+    'Agents': 'ఏజెంట్లు',
+    'Orders': 'ఆర్డర్లు',
+    'AI Insights': 'AI ఇన్‌సైట్స్',
+    'Audit Log': 'ఆడిట్ లాగ్',
+    'Team': 'టీమ్',
+    'Settings': 'సెట్టింగ్‌లు',
+    'Wards': 'వార్డులు',
+    'Grievances': 'ఫిర్యాదులు',
+    'SBM Compliance': 'SBM అనుపాలన',
+    'Worker Welfare': 'కార్మికుల సంక్షేమం',
+    'GIS Map': 'GIS మ్యాప్',
+    'Disaster Mgmt': 'విపత్తు నిర్వహణ',
+    'Compliance Reports': 'అనుపాలన నివేదికలు',
+    'Sign out': 'సైన్ ఔట్',
+    'Open today': 'నేడు తెరిచిన',
+
+    // Top bar / common controls
+    'CMCC': 'CMCC',
+    'Search community, agent, order, device...': 'కమ్యూనిటీ, ఏజెంట్, ఆర్డర్, పరికరం వెతకండి...',
+    'All systems nominal': 'అన్ని సిస్టమ్‌లు సాధారణం',
+    'mobile-linked': 'మొబైల్-లింక్',
+    'Create incident': 'ఘటన సృష్టించండి',
+    'Per-community': 'ప్రతి-కమ్యూనిటీ',
+    'Notifications': 'నోటిఫికేషన్లు',
+    'Toggle theme': 'థీమ్ మార్చండి',
+    "What's new": 'కొత్తదేమి',
+    'Brief me': 'నాకు బ్రీఫ్ చేయండి',
+    'Aria': 'ఆరియా',
+    'Listening…': 'వింటోంది…',
+    'Close': 'మూసివేయండి',
+    'Cancel': 'రద్దు చేయండి',
+    'Save': 'సేవ్ చేయండి',
+    'Submit': 'సమర్పించండి',
+    'Generate': 'తయారు చేయండి',
+    'View': 'వీక్షించండి',
+    'Enroll': 'నమోదు చేయండి',
+    'Live': 'లైవ్',
+    'live': 'లైవ్',
+    'LIVE': 'లైవ్',
+    'LIVE FEED': 'లైవ్ ఫీడ్',
+
+    // KPIs / status / common labels
+    'Live network status': 'లైవ్ నెట్‌వర్క్ స్థితి',
+    'Updated': 'నవీకరించబడింది',
+    'Active orders': 'క్రియాశీల ఆర్డర్లు',
+    'Revenue today': 'నేటి ఆదాయం',
+    'SLA compliance': 'SLA అనుపాలన',
+    'Open anomalies': 'తెరిచిన అసాధారణతలు',
+    'critical': 'క్లిష్టమైన',
+    'Agents online': 'ఏజెంట్లు ఆన్‌లైన్',
+    'Full bins ≥80%': 'నిండిన బిన్‌లు ≥80%',
+    'Devices offline': 'పరికరాలు ఆఫ్‌లైన్',
+    'Completed today': 'నేడు పూర్తయింది',
+    'National live map': 'జాతీయ లైవ్ మ్యాప్',
+    'Anomaly feed': 'అసాధారణతల ఫీడ్',
+    'Top communities by activity': 'కార్యకలాపాల ప్రకారం టాప్ కమ్యూనిటీలు',
+    'Recent control actions': 'ఇటీవలి నియంత్రణ చర్యలు',
+    'Community': 'కమ్యూనిటీ',
+    'City': 'నగరం',
+    'SLA': 'SLA',
+    'Status': 'స్థితి',
+    'OK': 'సరే',
+    'WARN': 'హెచ్చరిక',
+    'Warn': 'హెచ్చరిక',
+    'Critical': 'క్లిష్టమైన',
+    'When': 'ఎప్పుడు',
+    'Operator': 'ఆపరేటర్',
+    'Action': 'చర్య',
+    'Target': 'లక్ష్యం',
+
+    // Citizen portal — the public-facing surface
+    'DEMO · Independent prototype · Not affiliated with any government body':
+      'డెమో · స్వతంత్ర నమూనా · ఏ ప్రభుత్వ సంస్థతోనూ సంబంధం లేదు',
+    'Synthetic data · Live preview': 'సింథటిక్ డేటా · లైవ్ ప్రివ్యూ',
+    'Real-Time Governance · Live': 'రియల్-టైమ్ గవర్నెన్స్ · లైవ్',
+    'DEMO · designed for Mee-Seva / Aadhaar / DigiLocker integration':
+      'డెమో · మీ-సేవ / ఆధార్ / DigiLocker ఏకీకరణ కోసం రూపొందించబడింది',
+    'Telangana Citizen Portal': 'తెలంగాణ పౌర పోర్టల్',
+    'Track grievance': 'ఫిర్యాదు ట్రాక్ చేయండి',
+    'Schemes': 'పథకాలు',
+    'Open data': 'ఓపెన్ డేటా',
+    'Report a civic issue': 'పౌర సమస్యను నివేదించండి',
+    'Auto-routed to your ward officer · SLA-tracked · resolved within hours':
+      'మీ వార్డ్ అధికారికి ఆటోమేటిక్‌గా రూట్ · SLA-ట్రాక్ · గంటలలో పరిష్కారం',
+    'Local body (ULB)': 'స్థానిక సంస్థ (ULB)',
+    'Ward': 'వార్డ్',
+    'Category': 'వర్గం',
+    "What's wrong? (in any language)": 'ఏమి సమస్య? (ఏ భాషలోనైనా)',
+    'Photo (optional · AI verifies)': 'ఫోటో (ఐచ్ఛికం · AI ధృవీకరిస్తుంది)',
+    'Location': 'స్థానం',
+    'Mobile (Aadhaar-verified citizens get faster service)':
+      'మొబైల్ (ఆధార్-ధృవీకరణ పౌరులకు త్వరగా సేవ)',
+    'Submit grievance': 'ఫిర్యాదు సమర్పించండి',
+    'Telangana at a glance': 'తెలంగాణ ఒక చూపులో',
+    'Telangana welfare schemes': 'తెలంగాణ సంక్షేమ పథకాలు',
+    'Garbage':     'చెత్త',
+    'Water':       'నీరు',
+    'Streetlight': 'వీధి దీపం',
+    'Roads':       'రోడ్లు',
+    'Sewage':      'మురుగు',
+    'Stray':       'వదిలిన జంతువులు',
+    'Encroachment':'అతిక్రమణ',
+    'Mosquito':    'దోమ',
+    'Open': 'తెరిచిన',
+    'Resolved': 'పరిష్కరించబడింది',
+    'Assigned': 'కేటాయించబడింది',
+    'Escalated': 'పెంచబడింది',
+    'Citizen Grievances': 'పౌర ఫిర్యాదులు',
+    'Open grievances': 'తెరిచిన ఫిర్యాదులు',
+    'Resolved (24h)': 'పరిష్కరించబడింది (24గం)',
+    'Citizen NPS': 'పౌర NPS',
+    'Within SLA': 'SLA లోపల',
+    'SLA breached': 'SLA ఉల్లంఘించబడింది',
+    'Avg resolution time': 'సగటు పరిష్కార సమయం',
+
+    // Action verbs (operator queue + sheets)
+    'Assign': 'కేటాయించండి',
+    'Resolve': 'పరిష్కరించండి',
+    'Reject': 'తిరస్కరించండి',
+    'Update failed': 'నవీకరణ విఫలమైంది',
+    'demo': 'డెమో',
+    'mock': 'మాక్',
+    'design': 'డిజైన్',
+    'design-ready · demo': 'డిజైన్-సిద్ధం · డెమో',
+  };
+  const TE_PATTERNS = []; // none yet — extend when needed
+
+  // ── Generic resolver: dispatch by active language ──
+  function _resolve(t0) {
+    const L = lang();
+    if (L === 'HI') {
+      if (HI_DICT[t0]) return HI_DICT[t0];
+      for (const [re, hi] of HI_PATTERNS) {
+        const m = t0.match(re);
+        if (m) return _applyPattern(re, hi, m, t0);
+      }
+      return null;
+    }
+    if (L === 'TE') {
+      if (TE_DICT[t0]) return TE_DICT[t0];
+      for (const [re, te] of TE_PATTERNS) {
+        const m = t0.match(re);
+        if (m) return _applyPattern(re, te, m, t0);
+      }
+      return null;
+    }
+    return null;
+  }
+  // True when the active language has a translation engine (HI or TE).
+  function _isTranslating() { return lang() === 'HI' || lang() === 'TE'; }
+
   function tr(text) {
-    if (typeof text !== 'string' || lang() !== 'HI') return text;
+    if (typeof text !== 'string' || !_isTranslating()) return text;
     const t0 = text.trim();
     if (!t0) return text;
-    if (HI_DICT[t0]) return text.replace(t0, HI_DICT[t0]);
-    for (const [re, hi] of HI_PATTERNS) {
-      const m = t0.match(re);
-      if (m) return text.replace(t0, _applyPattern(re, hi, m, t0));
-    }
-    return text;
+    const repl = _resolve(t0);
+    return repl ? text.replace(t0, repl) : text;
   }
 
   const I18N_ATTRS = ['placeholder', 'title', 'aria-label', 'alt'];
   const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA']);
-  // Resolve a trimmed string to its Hindi form via dict OR regex pattern.
-  // Returns null if no match — caller leaves the text unchanged.
-  function _hiResolve(t0) {
-    if (HI_DICT[t0]) return HI_DICT[t0];
-    for (const [re, hi] of HI_PATTERNS) {
-      const m = t0.match(re);
-      if (m) return _applyPattern(re, hi, m, t0);
-    }
-    return null;
-  }
+  // Back-compat alias — older code paths inside this file still call
+  // _hiResolve. Now language-agnostic: returns the translated string
+  // for whichever lang is active (HI or TE), or null.
+  function _hiResolve(t0) { return _resolve(t0); }
   function translateNode(root) {
-    if (!root || lang() !== 'HI') return;
+    if (!root || !_isTranslating()) return;
     if (root.nodeType === 3) {
       const t0 = root.nodeValue?.trim();
       const hi = t0 ? _hiResolve(t0) : null;
@@ -974,7 +1165,7 @@ window.api = (() => {
   const I18N_QUEUE_LIMIT = 500; // safety cap
   function _i18nFlush() {
     _i18nFlushPending = false;
-    if (lang() !== 'HI' || _i18nPaused) { _i18nQueue.length = 0; return; }
+    if (!_isTranslating() || _i18nPaused) { _i18nQueue.length = 0; return; }
     const queue = _i18nQueue;
     _i18nQueue = [];
     for (const m of queue) {
@@ -999,7 +1190,7 @@ window.api = (() => {
   function startI18nObserver() {
     if (_i18nObs || !document.body) return;
     _i18nObs = new MutationObserver((muts) => {
-      if (_i18nPaused || lang() !== 'HI') return;
+      if (_i18nPaused || !_isTranslating()) return;
       // Cap the queue so a runaway burst (e.g. Leaflet zoom rendering
       // a thousand tiles) can't grow memory unboundedly.
       if (_i18nQueue.length >= I18N_QUEUE_LIMIT) return;
@@ -1020,11 +1211,11 @@ window.api = (() => {
   function pauseI18n() { _i18nPaused = true; }
   function resumeI18n() {
     _i18nPaused = false;
-    if (lang() === 'HI') translateNode(document.body);
+    if (_isTranslating()) translateNode(document.body);
   }
   function bootI18n() {
     document.documentElement.lang = lang().toLowerCase();
-    if (lang() === 'HI') translateNode(document.body);
+    if (_isTranslating()) translateNode(document.body);
     startI18nObserver();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootI18n);
