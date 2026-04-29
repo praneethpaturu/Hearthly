@@ -14,12 +14,25 @@ const SECRET = process.env.JWT_SECRET || 'cmcc-demo-secret-do-not-use-in-prod';
 // 'default-ts' is the Telangana state-wide demo bucket; everything that
 // existed before D1 multi-tenancy is implicitly here.
 export const DEFAULT_TENANT_ID = 'default-ts';
+// Each tenant gets its own WhatsApp Business number so inbound
+// messages can be routed by recipient. Demo numbers below are
+// synthetic; replace with real Meta-verified numbers per ULB.
 export const TENANTS_FALLBACK = new Map([
-  ['default-ts', { id: 'default-ts', name: 'Telangana Statewide (Demo)',                     shortName: 'TS Demo', state: 'TS', category: 'STATE', wardCount: 600 }],
-  ['ghmc',       { id: 'ghmc',       name: 'Greater Hyderabad Municipal Corporation',       shortName: 'GHMC',    state: 'TS', category: 'ULB',   wardCount: 150 }],
-  ['wmc',        { id: 'wmc',        name: 'Warangal Municipal Corporation',                shortName: 'WMC',     state: 'TS', category: 'ULB',   wardCount: 66  }],
-  ['kmc-tg',     { id: 'kmc-tg',     name: 'Khammam Municipal Corporation',                 shortName: 'KMC',     state: 'TS', category: 'ULB',   wardCount: 60  }],
+  ['default-ts', { id: 'default-ts', name: 'Telangana Statewide (Demo)',                     shortName: 'TS Demo', state: 'TS', category: 'STATE', wardCount: 600, whatsappNumber: '+918888880000' }],
+  ['ghmc',       { id: 'ghmc',       name: 'Greater Hyderabad Municipal Corporation',       shortName: 'GHMC',    state: 'TS', category: 'ULB',   wardCount: 150, whatsappNumber: '+918888880001' }],
+  ['wmc',        { id: 'wmc',        name: 'Warangal Municipal Corporation',                shortName: 'WMC',     state: 'TS', category: 'ULB',   wardCount: 66,  whatsappNumber: '+918888880002' }],
+  ['kmc-tg',     { id: 'kmc-tg',     name: 'Khammam Municipal Corporation',                 shortName: 'KMC',     state: 'TS', category: 'ULB',   wardCount: 60,  whatsappNumber: '+918888880003' }],
 ]);
+
+// Reverse index for phone → tenantId routing. Built once.
+const _whatsappToTenant = new Map();
+for (const t of TENANTS_FALLBACK.values()) {
+  if (t.whatsappNumber) _whatsappToTenant.set(t.whatsappNumber, t.id);
+}
+export function tenantIdForWhatsappNumber(phone) {
+  if (!phone) return DEFAULT_TENANT_ID;
+  return _whatsappToTenant.get(String(phone).replace(/\s+/g, '')) || DEFAULT_TENANT_ID;
+}
 
 // ── Operator allow-list (in-memory fallback) ───────────────────────
 // Mirrors the seed-rows in supabase/migrations/0001_init.sql + 0002.

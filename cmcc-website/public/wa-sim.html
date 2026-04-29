@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en" data-cmd>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0a0f1e" />
+<title>WhatsApp inbound simulator · Hearthly</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/tokens.css" />
+<link rel="stylesheet" href="/styles.css" />
+<link rel="stylesheet" href="/components.css" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&family=Material+Symbols+Outlined:opsz,wght@20..48,300..700" />
+<style>
+  body { background: var(--bg); color: var(--ink); font-family: 'Inter', system-ui, sans-serif;
+         min-height: 100dvh; margin: 0; padding: 32px 20px;
+         background-image: radial-gradient(900px 500px at 80% -100px, rgba(56,189,248,.18), transparent 60%),
+                           radial-gradient(800px 500px at -100px 100%, rgba(56,189,248,.10), transparent 60%); }
+  .wrap { max-width: 880px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 760px) { .wrap { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+  .panel h1, .panel h2 { margin: 0 0 4px; }
+  .panel h1 { font-size: 22px; letter-spacing: -0.01em; }
+  .panel h2 { font-size: 14px; color: var(--muted); font-weight: 600; }
+  .lead { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase;
+          letter-spacing: 0.04em; font-weight: 700; margin: 12px 0 6px; }
+  input, select, textarea {
+    width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 10px; color: var(--ink); font-size: 13px; outline: none; font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--brand); }
+  textarea { font-family: inherit; resize: vertical; min-height: 78px; }
+  button.primary {
+    margin-top: 18px; width: 100%; padding: 12px; background: var(--brand); color: #052030;
+    border: 0; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px;
+  }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary {
+    margin-top: 8px; width: 100%; padding: 10px; background: transparent; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 10px; font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+  .preset-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px; }
+  .preset { font-size: 11px; padding: 6px 8px; border-radius: 8px;
+            background: var(--bg); border: 1px solid var(--line); color: var(--ink);
+            cursor: pointer; font-family: inherit; text-align: left; }
+  .preset:hover { border-color: var(--brand); color: var(--brand); }
+  .log { font-family: 'JetBrains Mono', monospace; font-size: 12px;
+         background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+         padding: 14px; max-height: 460px; overflow-y: auto; }
+  .log .row { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .log .row:last-child { border-bottom: 0; }
+  .log .ok  { color: #4ade80; }
+  .log .bad { color: #f87171; }
+  .log .meta { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .badge {
+    display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 999px;
+    background: rgba(56,189,248,.16); color: #38bdf8; border: 1px solid rgba(56,189,248,.3);
+    text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; margin-left: 6px;
+  }
+  .help {
+    margin-top: 18px; padding: 12px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 10px; font-size: 11px; color: var(--muted); line-height: 1.6;
+  }
+  .help code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink); }
+  a { color: var(--brand); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="panel">
+    <h1>WhatsApp inbound simulator <span class="badge">demo</span></h1>
+    <h2>Sends to <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">/api/whatsapp/inbound</code></h2>
+    <p class="lead">Simulates a citizen WhatsApp message hitting the BSP webhook. The same endpoint accepts the real Meta envelope when a BSP is wired in — this form just sends the flat dev shape.</p>
+
+    <label>Citizen number (sender)</label>
+    <input id="from" value="+919876500001" placeholder="+91XXXXXXXXXX" />
+
+    <label>ULB WhatsApp number (recipient → tenant)</label>
+    <select id="to">
+      <option value="+918888880001">+91 88888 80001 · GHMC</option>
+      <option value="+918888880002">+91 88888 80002 · WMC (Warangal)</option>
+      <option value="+918888880003">+91 88888 80003 · KMC (Khammam)</option>
+      <option value="+918888880000">+91 88888 80000 · TS Statewide (Demo)</option>
+    </select>
+
+    <label>Message text (any language)</label>
+    <textarea id="text" rows="3" placeholder="బిన్ మూడు రోజులుగా శుభ్రం కాలేదు · or · Garbage not picked since 3 days near Banjara Hills">Garbage not picked since 3 days near Banjara Hills</textarea>
+
+    <label>Quick presets (click to load)</label>
+    <div class="preset-row">
+      <button class="preset" data-text="Garbage not picked since 3 days near Banjara Hills" data-lang="en">EN · Garbage</button>
+      <button class="preset" data-text="నీటి సరఫరా రెండు రోజులుగా లేదు, మాధాపూర్‌లో" data-lang="te">TE · Water</button>
+      <button class="preset" data-text="कुकटपल्ली में स्ट्रीट लाइट एक हफ्ते से बंद है" data-lang="hi">HI · Streetlight</button>
+      <button class="preset" data-text="రోడ్‌లో పెద్ద గుంట, ఎవరైనా పడిపోతారు" data-lang="te">TE · Pothole</button>
+      <button class="preset" data-text="मच्छर बहुत हैं, फॉगिंग नहीं हुई" data-lang="hi">HI · Mosquito</button>
+      <button class="preset" data-text="Open manhole on main road, sewage overflow" data-lang="en">EN · Sewage</button>
+    </div>
+
+    <button class="primary" id="send">Send WhatsApp message</button>
+    <button class="secondary" id="clear">Clear log</button>
+
+    <div class="help">
+      Real BSP integration: replace the simulator with a webhook from
+      Gupshup / AiSensy / Wati / Karix — point at the same
+      <code>/api/whatsapp/inbound</code> URL. Set <code>WA_VERIFY_TOKEN</code>
+      env var for Meta's GET handshake. Templates for outbound replies
+      need pre-approval from Meta Business.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h1>Server response log</h1>
+    <h2>Latest first · per-tenant routing visible</h2>
+    <div class="log" id="log">
+      <div class="row meta">no messages yet — send one from the left →</div>
+    </div>
+    <p class="lead" style="margin-top:14px; font-size:12px;">
+      Each successful message creates a tenant-scoped grievance —
+      sign in to <a href="/login.html">/login.html</a> as a GHMC
+      operator (Priya Iyer · +919999900010) and the new ticket
+      appears in the grievance queue within 30s.
+    </p>
+  </div>
+
+</div>
+
+<script>
+const log = document.getElementById('log');
+function logRow(html, cls = '') {
+  const r = document.createElement('div');
+  r.className = 'row ' + cls;
+  r.innerHTML = html;
+  if (log.firstChild?.classList.contains('meta')) log.removeChild(log.firstChild);
+  log.insertBefore(r, log.firstChild);
+}
+document.getElementById('clear').onclick = () => {
+  log.innerHTML = '<div class="row meta">log cleared</div>';
+};
+document.querySelectorAll('.preset').forEach((b) => b.onclick = () => {
+  document.getElementById('text').value = b.dataset.text;
+});
+document.getElementById('send').onclick = async () => {
+  const btn = document.getElementById('send');
+  btn.disabled = true; btn.textContent = 'Sending…';
+  const payload = {
+    from: document.getElementById('from').value,
+    to:   document.getElementById('to').value,
+    text: document.getElementById('text').value,
+  };
+  const t0 = Date.now();
+  try {
+    const r = await fetch('/api/whatsapp/inbound', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const dt = Date.now() - t0;
+    const j  = await r.json().catch(() => ({}));
+    if (r.ok && j?.ok) {
+      logRow(`<b>✓ ${j.grievance?.id || ''}</b> · ${dt}ms<br/>
+        <span class="meta">routed → tenant: <b>${j.routedTenantId}</b> · category: <b>${j.classified?.category}</b> · lang: <b>${j.classified?.language}</b></span><br/>
+        <span class="meta">→ reply: ${j.reply || ''}</span>`, 'ok');
+    } else {
+      logRow(`<b>✗ ${r.status}</b> · ${j.error || 'unknown error'}`, 'bad');
+    }
+  } catch (e) {
+    logRow(`<b>✗ network</b> · ${e.message}`, 'bad');
+  }
+  btn.disabled = false; btn.textContent = 'Send WhatsApp message';
+};
+</script>
+</body>
+</html>
