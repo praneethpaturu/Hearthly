@@ -211,3 +211,262 @@
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
 }
+
+
+/* ============================================================
+ * Phase 3 · Step 2: buttons
+ *
+ * Five primitives, one tokenised system:
+ *   .btn          — mobile/admin button (legacy: .btn cta/ghost/danger)
+ *   .cmd-btn      — CMCC dashboard button (legacy: .cmd-btn primary/danger)
+ *   .cmd-top .tb-btn — CMCC topbar button (legacy)
+ *   .icon-btn     — round 38px icon-only button
+ *   .avatar-btn   — round avatar (admin profile menu)
+ *
+ * All variants share base layout/typography/motion and resolve
+ * their colors from --btn-bg / --btn-fg / --btn-border tokens
+ * so per-variant blocks stay tiny and themable.
+ *
+ * What's improved over the legacy:
+ *   · Single source of truth for sizes, type, radius, motion
+ *   · Real :focus-visible ring (--shadow-focus) — was missing
+ *   · Disabled state with reduced-opacity (was inconsistent)
+ *   · Loading state spinner via .is-loading (new)
+ *   · Hover/active cleanly tokenised
+ *   · 36px / 30px / 42px height ramp on a 4px grid
+ *   · prefers-reduced-motion shrinks the active-scale to a no-op
+ *     via the cascade in tokens.css
+ * ============================================================ */
+
+/* — Base — applied via shared shape; per-variant overrides go below */
+.btn,
+.cmd-btn,
+.cmd-top .tb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 9px 14px;
+  min-height: 36px;
+  font-family: var(--font-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+  letter-spacing: -0.005em;
+  border: 1px solid var(--btn-border, var(--color-border));
+  border-radius: var(--radius-md);
+  background: var(--btn-bg, var(--color-surface));
+  color: var(--btn-fg, var(--color-text));
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  text-decoration: none; /* for <a class="btn"> */
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-short) var(--ease-out),
+    border-color     var(--motion-short) var(--ease-out),
+    color            var(--motion-short) var(--ease-out),
+    transform        var(--motion-short) var(--ease-out),
+    box-shadow       var(--motion-short) var(--ease-out);
+}
+
+.btn:hover,
+.cmd-btn:hover,
+.cmd-top .tb-btn:hover {
+  background: var(--btn-bg-hover, var(--color-surface-sunken));
+  border-color: var(--btn-border-hover, var(--color-border-strong));
+  color: var(--btn-fg-hover, var(--color-text));
+}
+
+.btn:active:not(:disabled),
+.cmd-btn:active:not(:disabled),
+.cmd-top .tb-btn:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.btn:focus-visible,
+.cmd-btn:focus-visible,
+.cmd-top .tb-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--color-accent);
+}
+
+.btn:disabled,
+.cmd-btn:disabled,
+.cmd-top .tb-btn:disabled,
+.btn[aria-disabled="true"],
+.cmd-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  pointer-events: none;
+}
+
+/* — Variant: PRIMARY / CTA */
+.btn.cta,
+.btn.primary,
+.cmd-btn.primary {
+  --btn-bg:           var(--color-accent);
+  --btn-bg-hover:     var(--color-accent-hover);
+  --btn-fg:           var(--color-text-on-accent);
+  --btn-fg-hover:     var(--color-text-on-accent);
+  --btn-border:       var(--color-accent);
+  --btn-border-hover: var(--color-accent-hover);
+}
+.btn.cta:active:not(:disabled),
+.btn.primary:active:not(:disabled),
+.cmd-btn.primary:active:not(:disabled) {
+  --btn-bg: var(--color-accent-pressed);
+}
+
+/* — Variant: GHOST (default visual when no modifier given) */
+.btn.ghost {
+  /* Already maps to base ghost values via the unset variables. */
+}
+
+/* — Variant: DANGER */
+.btn.danger,
+.cmd-btn.danger {
+  --btn-bg:           var(--color-danger-soft);
+  --btn-bg-hover:     var(--color-danger);
+  --btn-fg:           var(--color-danger-text);
+  --btn-fg-hover:     #fff;
+  --btn-border:       var(--color-danger-soft);
+  --btn-border-hover: var(--color-danger);
+}
+
+/* — Sizes */
+.btn.sm,
+.cmd-btn.sm,
+.cmd-top .tb-btn {
+  padding: 7px 12px;
+  min-height: 32px;
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+}
+.btn.cta {
+  /* CTA is the primary marketing-grade button; slightly larger. */
+  padding: 12px 18px;
+  min-height: 44px;
+  font-size: var(--text-md);
+  border-radius: var(--radius-lg);
+}
+
+/* — Block (full-width) */
+.btn.block,
+.cmd-btn.block {
+  width: 100%;
+}
+
+/* — Loading state — opt-in via `.is-loading`. JS can apply it on
+     async actions; the legacy disabled+textContent='Loading…' path
+     keeps working in parallel. */
+.btn.is-loading,
+.cmd-btn.is-loading,
+.cmd-top .tb-btn.is-loading {
+  pointer-events: none;
+  color: transparent !important;
+  position: relative;
+}
+.btn.is-loading::after,
+.cmd-btn.is-loading::after,
+.cmd-top .tb-btn.is-loading::after {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  inset: 0;
+  margin: auto;
+  border-radius: 50%;
+  border: 2px solid var(--btn-fg, currentColor);
+  border-top-color: transparent;
+  opacity: 0.85;
+  animation: hBtnSpin 0.6s var(--ease-linear) infinite;
+}
+@keyframes hBtnSpin {
+  to { transform: rotate(360deg); }
+}
+
+
+/* ───────────────────────────────────────────────────────────
+ * Icon button — round, 38px, used in app bars
+ * ───────────────────────────────────────────────────────── */
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-size: 20px;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--motion-short) var(--ease-out),
+    border-color     var(--motion-short) var(--ease-out),
+    color            var(--motion-short) var(--ease-out),
+    transform        var(--motion-short) var(--ease-out),
+    box-shadow       var(--motion-short) var(--ease-out);
+}
+.icon-btn:hover {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+.icon-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--color-accent);
+}
+.icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+/* ───────────────────────────────────────────────────────────
+ * Avatar button — round, used in admin profile menu
+ * ───────────────────────────────────────────────────────── */
+
+.avatar-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  cursor: pointer;
+  font-family: var(--font-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform  var(--motion-short) var(--ease-out),
+    box-shadow var(--motion-short) var(--ease-out);
+}
+.avatar-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.avatar-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.avatar-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
