@@ -8,10 +8,11 @@ export default async function handler(req, res) {
   const op = await authOperator(req);
   if (!op) return res.status(401).json({ error: 'unauthorized' });
 
-  const devices = await listHeartbeats();
+  const devices = await listHeartbeats({ tenantId: op.tenantId });
   return res.status(200).json({
     fetchedAt: Date.now(),
     deviceCount: devices.length,
+    tenantId: op.tenantId,
     devices,
   });
 }

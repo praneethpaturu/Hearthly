@@ -9,11 +9,11 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     const { action, target } = readBody(req);
-    const entry = await insertAudit({ actor: op.name, action, target });
+    const entry = await insertAudit({ actor: op.name, action, target, tenantId: op.tenantId });
     return res.status(200).json(entry);
   }
   if (req.method === 'GET') {
-    const rows = await listAudit(100);
+    const rows = await listAudit(100, { tenantId: op.tenantId });
     return res.status(200).json(rows);
   }
   return res.status(405).json({ error: 'method not allowed' });

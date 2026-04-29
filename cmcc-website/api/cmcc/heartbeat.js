@@ -7,11 +7,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' });
 
-  const { deviceId, state } = readBody(req);
+  const { deviceId, state, tenantId } = readBody(req);
   if (!deviceId) return res.status(400).json({ error: 'deviceId required' });
   await upsertHeartbeat({
     deviceId,
     state,
+    tenantId,                              // optional; defaults to 'default-ts' inside _lib
     ip: req.headers['x-forwarded-for'] || '',
     ua: req.headers['user-agent'] || '',
   });

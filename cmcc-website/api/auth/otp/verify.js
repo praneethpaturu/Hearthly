@@ -13,6 +13,6 @@ export default async function handler(req, res) {
   if (!op) return res.status(400).json({ error: 'invalid or expired otp' });
 
   const user = { ...op, role: 'OPERATOR' };
-  const token = signToken({ sub: op.id, phone: op.phone, role: 'OPERATOR' });
+  const token = signToken({ sub: op.id, phone: op.phone, role: 'OPERATOR', tenantId: op.tenantId });
   return res.status(200).json({ token, user });
 }
