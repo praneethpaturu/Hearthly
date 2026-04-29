@@ -1,0 +1,32 @@
+# Copy to terraform.tfvars and fill in. Never commit terraform.tfvars.
+
+region      = "ap-south-1"
+environment = "staging"
+owner       = "praneeth-paturu"
+
+# VPC
+vpc_cidr = "10.42.0.0/16"
+az_count = 2
+
+# Compute
+container_cpu    = 512
+container_memory = 1024
+desired_count    = 1
+
+# Database
+rds_instance_class = "db.t4g.medium"
+rds_storage_gb     = 20
+rds_multi_az       = false
+
+# Optional MQTT broker NLB (only enable if devices need to reach the broker
+# from outside the VPC — otherwise keep false to save cost)
+enable_mqtt = false
+
+# Optional Route53 / ACM (leave both empty for "ALB DNS only")
+# domain_zone_id = "Z0123456789ABCDEFGHIJ"
+# domain_name    = "hearthly.example.com"
+
+# Secrets — populate before deploy. Stored in Secrets Manager.
+# openai_api_key            = "sk-proj-..."
+# supabase_url              = "https://xxx.supabase.co"
+# supabase_service_role_key = "eyJhbGci..."

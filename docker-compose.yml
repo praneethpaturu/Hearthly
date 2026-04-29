@@ -1,0 +1,61 @@
+# Local dev parity for the AWS / on-prem deployment path.
+# Vercel auto-deploys are independent of this file.
+#
+#   docker compose up           # build + run web (3030), cmcc (4040), postgres (5432)
+#   docker compose up web       # just the citizen / mobile side + MQTT broker
+#   docker compose up cmcc      # just the operator console
+#
+# Inside containers:
+#   web      → http://localhost:3030  (mqtt: localhost:1883)
+#   cmcc     → http://localhost:4040
+#   postgres → postgres://hearthly:hearthly@localhost:5432/hearthly
+
+name: hearthly
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hearthly/web:dev
+    ports:
+      - "3030:3030"
+      - "1883:1883"
+    environment:
+      NODE_ENV: production
+      PORT: "3030"
+      MQTT_PORT: "1883"
+      JWT_SECRET: "${JWT_SECRET:-dev-only-not-for-prod}"
+    restart: unless-stopped
+
+  cmcc:
+    build:
+      context: ./cmcc-website
+      dockerfile: Dockerfile
+    image: hearthly/cmcc:dev
+    ports:
+      - "4040:4040"
+    environment:
+      NODE_ENV: production
+      PORT: "4040"
+      JWT_SECRET: "${JWT_SECRET:-dev-only-not-for-prod}"
+      SUPABASE_URL: "${SUPABASE_URL:-}"
+      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: hearthly
+      POSTGRES_PASSWORD: hearthly
+      POSTGRES_DB: hearthly
+    volumes:
+      - hearthly-pg:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d:ro
+    restart: unless-stopped
+
+volumes:
+  hearthly-pg:
